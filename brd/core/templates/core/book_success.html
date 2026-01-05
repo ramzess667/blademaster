@@ -3,15 +3,18 @@
 {% block content %}
 <div class="container my-5 text-center">
     <div class="p-5 bg-light rounded shadow" data-aos="fade-up">
-        <!-- Заголовок зависит от статуса -->
-        <h1 class="display-5 fw-bold mb-4 
+        <!-- Заголовок и цвет по статусу -->
+        <h1 class="display-5 fw-bold mb-4
             {% if appointment.status == 'cancelled' %}text-danger
             {% elif appointment.status == 'completed' %}text-success
+            {% elif appointment.status == 'confirmed' %}text-info
             {% else %}text-success{% endif %}">
             {% if appointment.status == 'cancelled' %}
                 ❌ Запись отменена
             {% elif appointment.status == 'completed' %}
                 ✅ Услуга выполнена
+            {% elif appointment.status == 'confirmed' %}
+                ✅ Запись подтверждена
             {% else %}
                 ✅ Запись успешно создана!
             {% endif %}
@@ -27,95 +30,101 @@
                 <p><strong>Сумма:</strong> {{ appointment.total_price }} ₸</p>
                 <p><strong>Статус:</strong> {{ appointment.get_status_display }}</p>
                 <p><strong>Клиент:</strong> {{ appointment.client_name }} ({{ appointment.client_phone }})</p>
+                {% if appointment.client_email %}
+                <p><strong>Email:</strong> {{ appointment.client_email }}</p>
+                {% endif %}
             </div>
         </div>
 
-        <!-- Отзыв -->
-        {% if not appointment.review %}
-        <div class="mt-5 p-4 bg-light rounded shadow">
-            <h4 class="text-center mb-4">Оцените мастера {{ appointment.master.full_name }}</h4>
-            <form method="post" action="{% url 'add_review' appointment.id %}">
-                {% csrf_token %}
-                <div class="text-center mb-4">
-                    <label class="fw-bold d-block mb-2">Ваша оценка:</label>
-                    <div class="star-rating">
-                        {% for i in "12345" %}
-                        <button type="button" class="btn btn-outline-warning btn-lg star-btn mx-1"
-                            data-value="{{ i }}">★</button>
-                        {% endfor %}
+        <!-- Отзыв — только если не отменена -->
+        {% if appointment.status not in 'cancelled' %}
+            {% if not appointment.review %}
+            <div class="mt-5 p-4 bg-light rounded shadow">
+                <h4 class="text-center mb-4">Оцените мастера {{ appointment.master.full_name }}</h4>
+                <form method="post" action="{% url 'add_review' appointment.id %}">
+                    {% csrf_token %}
+                    <div class="text-center mb-4">
+                        <label class="fw-bold d-block mb-2">Ваша оценка:</label>
+                        <div class="star-rating">
+                            {% for i in "12345" %}
+                            <button type="button" class="btn btn-outline-warning btn-lg star-btn mx-1"
+                                data-value="{{ i }}">★</button>
+                            {% endfor %}
+                        </div>
+                        <input type="hidden" name="rating" id="ratingInput" required>
                     </div>
-                    <input type="hidden" name="rating" id="ratingInput" required>
-                </div>
-                <div class="mb-4">
-                    <textarea name="comment" class="form-control" rows="4"
-                        placeholder="Ваш отзыв (необязательно)"></textarea>
-                </div>
-                <div class="text-center">
-                    <button type="submit" class="btn btn-success btn-lg">Отправить отзыв</button>
-                </div>
-            </form>
-        </div>
+                    <div class="mb-4">
+                        <textarea name="comment" class="form-control" rows="4"
+                            placeholder="Ваш отзыв (необязательно)"></textarea>
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-success btn-lg">Отправить отзыв</button>
+                    </div>
+                </form>
+            </div>
 
-        <script>
-            const starButtons = document.querySelectorAll('.star-btn');
-            const ratingInput = document.getElementById('ratingInput');
+            <script>
+                const starButtons = document.querySelectorAll('.star-btn');
+                const ratingInput = document.getElementById('ratingInput');
 
-            starButtons.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const value = btn.dataset.value;
-                    ratingInput.value = value;
+                starButtons.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const value = btn.dataset.value;
+                        ratingInput.value = value;
 
-                    starButtons.forEach(b => {
-                        if (parseInt(b.dataset.value) <= parseInt(value)) {
-                            b.classList.remove('btn-outline-warning');
-                            b.classList.add('btn-warning');
-                        } else {
-                            b.classList.remove('btn-warning');
-                            b.classList.add('btn-outline-warning');
-                        }
+                        starButtons.forEach(b => {
+                            if (parseInt(b.dataset.value) <= parseInt(value)) {
+                                b.classList.remove('btn-outline-warning');
+                                b.classList.add('btn-warning');
+                            } else {
+                                b.classList.remove('btn-warning');
+                                b.classList.add('btn-outline-warning');
+                            }
+                        });
                     });
                 });
-            });
-        </script>
-        {% else %}
-        <div class="mt-5 p-4 bg-light rounded shadow text-center">
-            <h4>Спасибо за отзыв! ⭐ {{ appointment.review.rating }}/5</h4>
-            {% if appointment.review.comment %}
-            <p class="mt-3"><em>"{{ appointment.review.comment }}"</em></p>
+            </script>
+            {% else %}
+            <div class="mt-5 p-4 bg-light rounded shadow text-center">
+                <h4>Спасибо за отзыв! ⭐ {{ appointment.review.rating }}/5</h4>
+                {% if appointment.review.comment %}
+                <p class="mt-3"><em>"{{ appointment.review.comment }}"</em></p>
+                {% endif %}
+            </div>
             {% endif %}
-        </div>
         {% endif %}
 
-        <!-- Кнопка отмены — только если запись активна и время позволяет -->
+        <!-- Кнопка отмены — только если возможно -->
         {% if appointment.status in 'new,confirmed' %}
-        <div class="mt-4">
-            <p class="text-muted">Отменить запись можно не позднее чем за 2 часа до начала.</p>
-            <a href="{% url 'cancel_appointment' appointment.id %}" 
-               class="btn btn-outline-danger btn-lg"
-               onclick="return confirm('Точно отменить запись?')">Отменить запись</a>
-        </div>
+            <div class="mt-4">
+                <p class="text-muted">Отменить запись можно не позднее чем за 2 часа до начала.</p>
+                <a href="{% url 'cancel_appointment' appointment.id %}" 
+                   class="btn btn-outline-danger btn-lg"
+                   onclick="return confirm('Точно отменить запись?')">Отменить запись</a>
+            </div>
         {% elif appointment.status == 'cancelled' %}
-        <div class="mt-4">
-            <p class="text-danger fw-bold">Запись была отменена.</p>
-        </div>
+            <div class="mt-4">
+                <p class="text-danger fw-bold">Запись была отменена.</p>
+            </div>
         {% endif %}
 
         <!-- PDF-кнопки -->
         <div class="mt-5 text-center">
             {% if appointment.status != 'cancelled' %}
-            <a href="{% url 'generate_invoice_pdf' appointment.id %}" 
-               class="btn btn-success btn-lg mx-2" target="_blank">
-                Скачать счёт в PDF
-            </a>
-            {% if appointment.status == 'completed' %}
-            <a href="{% url 'generate_act_pdf' appointment.id %}" 
-               class="btn btn-info btn-lg mx-2" target="_blank">
-                Скачать акт выполненных работ
-            </a>
-            {% endif %}
+                <a href="{% url 'generate_invoice_pdf' appointment.id %}" 
+                   class="btn btn-success btn-lg mx-2" target="_blank">
+                    Скачать счёт в PDF
+                </a>
+                {% if appointment.status == 'completed' %}
+                <a href="{% url 'generate_act_pdf' appointment.id %}" 
+                   class="btn btn-info btn-lg mx-2" target="_blank">
+                    Скачать акт выполненных работ
+                </a>
+                {% endif %}
             {% endif %}
             
             <a href="/" class="btn btn-primary btn-lg mx-2">На главную</a>
+            <a href="/services/" class="btn btn-outline-success btn-lg mx-2">Записаться снова</a>
         </div>
     </div>
 </div>

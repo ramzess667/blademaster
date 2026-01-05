@@ -494,8 +494,18 @@ def cabinet_dashboard(request):
     if not phone:
         return redirect('cabinet_login')
     
-    # Все записи клиента
     appointments = Appointment.objects.filter(client_phone=phone).order_by('-date', '-time')
+    
+    # Добавляем флаг can_cancel для каждой записи
+    for app in appointments:
+        if app.status in ['new', 'confirmed']:
+            app_datetime = timezone.make_aware(datetime.combine(app.date, app.time))
+            if timezone.now() + timedelta(hours=2) < app_datetime:
+                app.can_cancel = True
+            else:
+                app.can_cancel = False
+        else:
+            app.can_cancel = False
     
     return render(request, 'core/cabinet_dashboard.html', {
         'phone': phone,
