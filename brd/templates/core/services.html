@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="text-center mb-5">Наши услуги</h1>
+
+<div class="row">
+    {% for service in services %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">{{ service.name }}</h5>
+                <p class="card-text">{{ service.description|default:"" }}</p>
+                <p class="price">{{ service.price }} ₸</p>
+                <p><small class="text-muted">Длительность: {{ service.duration }} мин</small></p>
+                <p><small class="text-muted">Категория: {{ service.get_category_display }}</small></p>
+            </div>
+            <div class="card-footer bg-white text-center">
+                <a href="#" class="btn btn-outline-success">Записаться</a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <p>Услуг пока нет.</p>
+    {% endfor %}
+</div>
+{% endblock %}

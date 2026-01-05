@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-5">
+                    <h2 class="text-center mb-4 fw-bold">Личный кабинет</h2>
+                    <p class="text-center text-muted mb-4">Введите телефон из вашей записи</p>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <input type="tel" name="phone" class="form-control form-control-lg text-center" 
+                                   placeholder="+7 (___) ___-__-__" required>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">Войти</button>
+                        </div>
+                    </form>
+                    
+                    <div class="text-center mt-4">
+                        <a href="/" class="text-muted">← Вернуться на главную</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

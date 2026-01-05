@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="hero" style="background-image: url('https://thumbs.dreamstime.com/b/luxurious-modern-barbershop-interior-stylish-design-black-gold-color-palette-light-plants-mirrors-trendy-barber-chairs-salon-385595635.jpg');">
+    <div class="hero-overlay">
+        <h1 class="display-2 fw-bold">BladeMaster</h1>
+        <p class="lead fs-2">Премиум мужской груминг: стиль, который меняет</p>
+        <a href="/services/" class="btn btn-primary btn-lg mt-4">Записаться</a>
+    </div>
+</div>
+
+<div class="container my-5" data-aos="fade-up">
+    <h2 class="text-center mb-5 fw-bold">До и после: Трансформации наших клиентов</h2>
+    <div id="galleryCarousel" class="carousel slide" data-bs-ride="carousel">
+        <div class="carousel-inner">
+            <div class="carousel-item active">
+                <img src="https://i.ytimg.com/vi/qnMQxwAgBs0/maxresdefault.jpg" class="d-block w-100" style="height: 400px; object-fit: cover;" alt="До/после 1">
+            </div>
+            <div class="carousel-item">
+                <img src="https://static.boredpanda.com/blog/wp-content/uploads/2017/10/before-after-men-haircut-transformations-231-59dcc9c576c01__700.jpg" class="d-block w-100" style="height: 400px; object-fit: cover;" alt="До/после 2">
+            </div>
+            <div class="carousel-item">
+                <img src="https://static.boredpanda.com/blog/wp-content/uploads/2017/10/before-after-men-haircut-transformations-223-59dcb4647bb14__700.jpg" class="d-block w-100" style="height: 400px; object-fit: cover;" alt="До/после 3">
+            </div>
+            <div class="carousel-item">
+                <img src="https://plugins-media.makeupar.com/smb/blog/post/2024-04-11/8b0996b3-0b18-45c2-98a9-85d009e1b92a.jpg" class="d-block w-100" style="height: 400px; object-fit: cover;" alt="До/после 4">
+            </div>
+        </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#galleryCarousel" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Previous</span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#galleryCarousel" data-bs-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Next</span>
+        </button>
+    </div>
+</div>
+{% endblock %}

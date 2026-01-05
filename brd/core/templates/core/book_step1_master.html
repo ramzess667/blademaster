@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container my-5">
+    <h1 class="text-center mb-5">Выберите мастера для услуги: {{ service.name }}</h1>
+    <div class="row">
+        {% for master in masters %}
+        <div class="col-md-4 mb-4">
+            <div class="card text-center">
+                {% if master.photo %}
+                <img src="{{ master.photo.url }}" class="card-img-top rounded-circle mx-auto mt-3" style="width: 150px; height: 150px; object-fit: cover;">
+                {% endif %}
+                <div class="card-body">
+                    <h5>{{ master.full_name }}</h5>
+                    <p>{{ master.description|truncatewords:20 }}</p>
+                    <a href="{% url 'book_datetime' service.id master.id %}" class="btn btn-primary">Выбрать этого мастера</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="text-center mt-4">
+        <a href="{% url 'services' %}" class="btn btn-secondary">← Вернуться к услугам</a>
+    </div>
+</div>
+{% endblock %}

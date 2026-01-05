@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container my-5">
+    <h1 class="text-center mb-4 fw-bold">Выбор даты и времени</h1>
+
+    <div class="card mx-auto mb-5" style="max-width: 600px;">
+        <div class="card-body">
+            <p><strong>Мастер:</strong> {{ master.full_name }}</p>
+            <h5>Услуги:</h5>
+            <ul>
+                {% for service in services %}
+                <li>{{ service.name }} — {{ service.price }} ₸ ({{ service.duration }} мин)</li>
+                {% endfor %}
+            </ul>
+            <p class="fw-bold">Общая сумма: {{ total_price }} ₸</p>
+            <p class="fw-bold">Общая длительность: {{ total_duration }} мин</p>
+        </div>
+    </div>
+
+    <form method="post" id="bookingForm">
+        {% csrf_token %}
+
+        <!-- Скрытые поля — обязательно! -->
+        <input type="hidden" name="master_id" value="{{ master.id }}">
+        {% for service in services %}
+        <input type="hidden" name="service_ids" value="{{ service.id }}">
+        {% endfor %}
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label class="fw-bold">Дата:</label>
+                <input type="text" id="datepicker" class="form-control" placeholder="Выберите дату" required>
+                <input type="hidden" name="date" id="selectedDate">
+            </div>
+            <div class="col-md-6">
+    <label class="fw-bold">Время:</label>
+    <div class="d-flex flex-wrap gap-2" id="timeButtons">
+        {% if free_slots %}
+            {% for time in free_slots %}
+            <button type="button" class="btn btn-outline-primary time-btn" data-time="{{ time }}">{{ time }}</button>
+            {% endfor %}
+        {% else %}
+            <p class="text-danger fw-bold">На эту дату нет свободного времени у мастера</p>
+        {% endif %}
+    </div>
+    <input type="hidden" name="time" id="selectedTime" required>
+</div>
+
+            <h4 class="mt-5">Ваши данные</h4>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <input type="text" name="client_name" class="form-control" placeholder="Имя" required>
+                </div>
+                <div class="col-md-6">
+                    <input type="tel" name="client_phone" class="form-control" placeholder="Телефон" required>
+                </div>
+                <div class="col-12">
+                    <input type="email" name="client_email" class="form-control" placeholder="Email (необязательно)">
+                </div>
+            </div>
+
+            <div class="text-center mt-5">
+                <button type="submit" class="btn btn-primary btn-lg">Подтвердить запись</button>
+            </div>
+    </form>
+</div>
+
+<!-- Flatpickr CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+<input type="hidden" id="initialDate" value="{{ dates.0|date:'Y-m-d' }}">
+<script>
+    const timeButtonsContainer = document.getElementById('timeButtons');
+    const selectedTimeInput = document.getElementById('selectedTime');
+    const masterId = '{{ master.id }}';
+    const initialDate = document.getElementById('initialDate').value;
+
+    function loadFreeSlots(dateStr) {
+        if (!dateStr) {
+            timeButtonsContainer.innerHTML = '<p class="text-muted">Выберите дату</p>';
+            return;
+        }
+        
+        fetch(`/get-free-slots/${masterId}/${dateStr}/`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Bad response');
+                }
+                return response.json();
+            })
+            .then(data => {
+                timeButtonsContainer.innerHTML = '';
+                
+                if (data.free_slots && data.free_slots.length > 0) {
+                    data.free_slots.forEach(time => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.classList.add('btn', 'btn-outline-primary', 'time-btn');
+                        btn.dataset.time = time;
+                        btn.textContent = time;
+                        btn.addEventListener('click', () => {
+                            document.querySelectorAll('.time-btn').forEach(b => {
+                                b.classList.remove('btn-primary');
+                                b.classList.add('btn-outline-primary');
+                            });
+                            btn.classList.remove('btn-outline-primary');
+                            btn.classList.add('btn-primary');
+                            selectedTimeInput.value = time;
+                        });
+                        timeButtonsContainer.appendChild(btn);
+                    });
+                } else {
+                    timeButtonsContainer.innerHTML = '<p class="text-danger fw-bold">На эту дату нет свободного времени</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                timeButtonsContainer.innerHTML = '<p class="text-warning">Ошибка загрузки времени</p>';
+            });
+    }
+
+    // Календарь
+    flatpickr("#datepicker", {
+        dateFormat: "Y-m-d",
+        minDate: "today",
+        maxDate: new Date().fp_incr(30),
+        locale: "ru",
+        defaultDate: initialDate,
+        onChange: function(selectedDates, dateStr) {
+            document.getElementById('selectedDate').value = dateStr;
+            loadFreeSlots(dateStr);
+        }
+    });
+
+    // Загрузка при открытии
+    loadFreeSlots(initialDate);
+
+    // Проверка формы
+    document.getElementById('bookingForm').addEventListener('submit', function(e) {
+        if (!document.getElementById('selectedDate').value || !selectedTimeInput.value) {
+            alert('Выберите дату и время!');
+            e.preventDefault();
+        }
+    });
+</script>
+{% endblock %}

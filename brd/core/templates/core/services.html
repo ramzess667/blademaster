@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container my-5">
+    <h1 class="text-center mb-5 fw-bold" data-aos="fade-down">Наши услуги</h1>
+    
+    <form method="post" action="{% url 'book_select_master' %}">
+        {% csrf_token %}
+        
+        <div class="text-center mb-5">
+            <select id="categoryFilter" class="form-select w-50 mx-auto">
+                <option value="all">Все категории</option>
+                <option value="haircut">Стрижки</option>
+                <option value="beard">Бритьё и оформление бороды</option>
+                <option value="care">Уход</option>
+                <option value="complex">Комплексные процедуры</option>
+            </select>
+        </div>
+
+        <div class="row">
+            {% for service in services %}
+            <div class="col-md-6 col-lg-4 mb-4 service-card" data-category="{{ service.category }}" data-aos="zoom-in">
+                <div class="card h-100">
+                    <div class="card-body text-center d-flex flex-column">
+                        <h5 class="card-title fw-bold mt-auto">{{ service.name }}</h5>
+                        <p class="card-text flex-grow-1">{{ service.description|default:"" }}</p>
+                        <p class="price">{{ service.price }} ₸</p>
+                        <p><small class="text-muted">Длительность: {{ service.duration }} мин</small></p>
+                        <p><small class="text-muted">Категория: {{ service.get_category_display }}</small></p>
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox" name="services" value="{{ service.id }}" id="service{{ service.id }}">
+                            <label class="form-check-label fw-bold" for="service{{ service.id }}">
+                                Выбрать услугу
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="text-center mt-5">
+            <button type="submit" class="btn btn-primary btn-lg">Далее — выбрать мастера</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.getElementById('categoryFilter').addEventListener('change', function () {
+        const selected = this.value.toLowerCase();
+        const cards = document.querySelectorAll('.service-card');
+
+        cards.forEach(card => {
+            const cardCategory = card.dataset.category.toLowerCase();
+            if (selected === 'all' || cardCategory === selected) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        // Исправление для AOS: рефреш анимаций после изменения display
+        setTimeout(() => {
+            AOS.refreshHard();
+        }, 50); // Маленький таймаут для reflow
+    });
+
+    // При загрузке рефреш AOS на всякий
+    window.onload = function () {
+        AOS.refresh();
+    };
+</script>
+{% endblock %}

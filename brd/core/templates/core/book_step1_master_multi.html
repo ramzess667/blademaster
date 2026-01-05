@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container my-5">
+    <h1 class="text-center mb-5 fw-bold">Выбранные услуги</h1>
+    
+    <div class="card mx-auto mb-5" style="max-width: 600px;">
+        <div class="card-body">
+            <ul>
+                {% for service in services %}
+                <li><strong>{{ service.name }}</strong> — {{ service.price }} ₸ ({{ service.duration }} мин)</li>
+                {% endfor %}
+            </ul>
+            <p class="fw-bold">Общая сумма: {{ total_price }} ₸</p>
+            <p class="fw-bold">Общая длительность: {{ total_duration }} мин</p>
+        </div>
+    </div>
+
+    <h2 class="text-center mb-4">Выберите мастера</h2>
+
+    <form method="post" action="{% url 'book_datetime_multi' %}">
+        {% csrf_token %}
+        
+        <!-- Скрытые поля с ID услуг -->
+        {% for service in services %}
+        <input type="hidden" name="services" value="{{ service.id }}">
+        {% endfor %}
+        
+        <div class="row">
+            {% for master in masters %}
+            <div class="col-md-4 mb-4">
+                <div class="card text-center h-100">
+                    {% if master.photo %}
+                    <img src="{{ master.photo.url }}" class="card-img-top rounded-circle mx-auto mt-3" style="width: 150px; height: 150px; object-fit: cover;">
+                    {% endif %}
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="mt-auto">{{ master.full_name }}</h5>
+                        <p class="flex-grow-1">{{ master.description|truncatewords:20 }}</p>
+                        <div class="form-check mt-auto">
+                            <input class="form-check-input" type="radio" name="master" value="{{ master.id }}" id="master{{ master.id }}" required>
+                            <label class="form-check-label fw-bold" for="master{{ master.id }}">
+                                Выбрать
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="text-center mt-5">
+            <button type="submit" class="btn btn-primary btn-lg">Далее — дата и время</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
