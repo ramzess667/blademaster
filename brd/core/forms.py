@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
+from .models import Client
 
 class BookingAuthForm(forms.Form):
     phone = forms.CharField(label="Телефон", max_length=20)

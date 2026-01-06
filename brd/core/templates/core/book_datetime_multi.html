@@ -17,11 +17,11 @@
             <p class="fw-bold">Общая длительность: {{ total_duration }} мин</p>
         </div>
     </div>
-    
+
     <form method="post" id="bookingForm">
         {% csrf_token %}
 
-        <!-- Скрытые поля для передачи данных -->
+        <!-- Скрытые поля -->
         <input type="hidden" name="master_id" value="{{ master.id }}">
         {% for service in services %}
         <input type="hidden" name="service_ids" value="{{ service.id }}">
@@ -36,7 +36,14 @@
             <div class="col-md-6">
                 <label class="fw-bold">Время:</label>
                 <div class="d-flex flex-wrap gap-2" id="timeButtons">
-                    <!-- Кнопки генерируются JS -->
+                    {% if free_slots %}
+                    {% for time in free_slots %}
+                    <button type="button" class="btn btn-outline-primary time-btn" data-time="{{ time }}">{{ time
+                        }}</button>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-danger fw-bold">На эту дату нет свободного времени у мастера</p>
+                    {% endif %}
                 </div>
                 <input type="hidden" name="time" id="selectedTime" required>
             </div>
@@ -46,40 +53,49 @@
         <div class="row g-3">
             <div class="col-md-6">
                 <label class="fw-bold">Имя</label>
-                <input type="text" name="client_name" class="form-control" required>
+                <input type="text" name="client_name" class="form-control" placeholder="Имя" required>
             </div>
             <div class="col-md-6">
                 <label class="fw-bold">Телефон (для входа в кабинет)</label>
-                <input type="tel" name="phone" class="form-control" placeholder="+7 (___) ___-__-__" required>
+                <input type="tel" id="phoneInput" name="phone" class="form-control" placeholder="+7 (___) ___-__-__"
+                    required>
             </div>
             <div class="col-md-6">
                 <label class="fw-bold">Пароль</label>
-                <input type="password" name="password" class="form-control" required>
+                <input type="password" name="password" class="form-control" placeholder="Пароль" required>
             </div>
             <div class="col-md-6">
                 <label class="fw-bold">Повторить пароль (для новых клиентов)</label>
-                <input type="password" name="password2" class="form-control">
+                <input type="password" name="password2" class="form-control" placeholder="Повторить пароль" required>
             </div>
             <div class="col-12">
                 <label class="fw-bold">Email (необязательно)</label>
-                <input type="email" name="client_email" class="form-control">
+                <input type="email" name="client_email" class="form-control" placeholder="Email">
             </div>
         </div>
 
         <div class="text-center mt-5">
-            <button type="submit" class="btn btn-primary btn-lg px-5">Подтвердить запись</button>
+            <button type="submit" class="btn btn-primary btn-lg">Подтвердить запись</button>
         </div>
     </form>
 </div>
 
-<!-- Flatpickr -->
+<!-- Flatpickr и IMask CDN -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+<script src="https://unpkg.com/imask"></script>
 
 <input type="hidden" id="initialDate" value="{{ dates.0|date:'Y-m-d' }}">
 
 <script>
+    // Маска для номера +7 (___) ___-__-__
+    IMask(document.getElementById('phoneInput'), {
+        mask: '+{7} (000) 000-00-00',
+        lazy: false,
+        placeholderChar: '_'
+    });
+
     const timeButtonsContainer = document.getElementById('timeButtons');
     const selectedTimeInput = document.getElementById('selectedTime');
     const masterId = '{{ master.id }}';
@@ -129,7 +145,7 @@
         maxDate: new Date().fp_incr(30),
         locale: "ru",
         defaultDate: initialDate,
-        onChange: function(selectedDates, dateStr) {
+        onChange: function (selectedDates, dateStr) {
             document.getElementById('selectedDate').value = dateStr;
             loadFreeSlots(dateStr);
         }
@@ -137,7 +153,7 @@
 
     loadFreeSlots(initialDate);
 
-    document.getElementById('bookingForm').addEventListener('submit', function(e) {
+    document.getElementById('bookingForm').addEventListener('submit', function (e) {
         if (!document.getElementById('selectedDate').value || !selectedTimeInput.value) {
             alert('Выберите дату и время!');
             e.preventDefault();

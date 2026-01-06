@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.core.mail import send_mail
-from .models import Service, Master, Appointment,Review,User
+from .models import Service, Master, Appointment, Review, User, Client
 from django.utils import timezone
 from django.conf import settings
 from datetime import datetime, timedelta, time as dtime
@@ -18,6 +18,7 @@ from django.contrib.auth import login, authenticate
 from .forms import BookingAuthForm
 
 import os
+
 
 def home(request):
     return render(request, "core/home.html")
@@ -202,163 +203,159 @@ def book_select_master(request):
 
     return redirect("services")
 
+
 def book_datetime_multi(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         # Первый POST: выбор мастера
-        if 'master' in request.POST:
-            service_ids = request.POST.getlist('services')
-            master_id = request.POST['master']
-            
+        if "master" in request.POST:
+            service_ids = request.POST.getlist("services")
+            master_id = request.POST["master"]
+
             if not service_ids or not master_id:
-                messages.error(request, 'Ошибка выбора. Начните заново.')
-                return redirect('services')
-            
+                messages.error(request, "Ошибка выбора. Начните заново.")
+                return redirect("services")
+
             services = Service.objects.filter(id__in=service_ids)
             master = get_object_or_404(Master, id=master_id)
             total_price = sum(s.price for s in services)
             total_duration = sum(s.duration for s in services)
-            
+
             # Генерация слотов (твой код — оставляем)
             start_str = "10:00"
             end_str = "22:00"
             start_time = datetime.strptime(start_str, "%H:%M")
             end_time = datetime.strptime(end_str, "%H:%M")
             slot_step = 30
-            
+
             all_slots = []
             current = start_time
             while current <= end_time:
                 all_slots.append(current.strftime("%H:%M"))
                 current = current + timedelta(minutes=slot_step)
-            
+
             # Занятые слоты
             appointments = Appointment.objects.filter(
-                master=master,
-                status__in=['new', 'confirmed']
+                master=master, status__in=["new", "confirmed"]
             )
-            
+
             occupied_slots = set()
             for app in appointments:
                 app_start = datetime.strptime(app.time.strftime("%H:%M"), "%H:%M")
                 app_duration = sum(s.duration for s in app.service.all())
                 app_end = app_start + timedelta(minutes=app_duration)
-                
+
                 slot_time = app_start
                 while slot_time < app_end:
                     time_str = slot_time.strftime("%H:%M")
                     if time_str in all_slots:
                         occupied_slots.add(time_str)
                     slot_time += timedelta(minutes=slot_step)
-            
+
             free_slots = [slot for slot in all_slots if slot not in occupied_slots]
-            
-            # Даты
+
             today = timezone.now().date()
             dates = [today + timedelta(days=i) for i in range(30)]
-            
-            # Сохраняем данные в сессии для второго POST
-            request.session['temp_booking'] = {
-                'service_ids': service_ids,
-                'master_id': master_id,
-                'total_price': float(total_price),
-                'total_duration': total_duration,
-            }
-            
-            return render(request, 'core/book_datetime_multi.html', {
-                'services': services,
-                'master': master,
-                'total_price': total_price,
-                'total_duration': total_duration,
-                'dates': dates,
-                'free_slots': free_slots,
-                'form': BookingAuthForm(),
-            })
-        
-        # Второй POST: финальное подтверждение с авторизацией
-        elif 'date' in request.POST:
-            form = BookingAuthForm(request.POST)
-            temp_data = request.session.get('temp_booking')
-            
-            if not temp_data:
-                messages.error(request, 'Сессия истекла. Начните заново.')
-                return redirect('services')
-            
-            if form.is_valid():
-                phone = form.cleaned_data['phone']
-                password = form.cleaned_data['password']
-                
-                user = None
-                try:
-                    client = Client.objects.get(phone=phone)
-                    user = authenticate(request, username=client.user.username, password=password)
-                    if not user:
-                        messages.error(request, 'Неверный пароль.')
-                        return redirect('services')
-                except Client.DoesNotExist:
-                    # Новый клиент
-                    user = User.objects.create_user(username=phone, password=password)
-                    Client.objects.create(user=user, phone=phone)
-                    user = authenticate(request, username=phone, password=password)
-                
-                login(request, user)
-                
-                # Восстанавливаем данные
-                service_ids = temp_data['service_ids']
-                master_id = temp_data['master_id']
-                date_str = request.POST['date']
-                time_str = request.POST['time']
-                
-                services = Service.objects.filter(id__in=service_ids)
-                master = get_object_or_404(Master, id=master_id)
-                
-                # Проверка на занятость
-                if Appointment.objects.filter(
-                    master=master,
-                    date=date_str,
-                    time=time_str,
-                    status__in=['new', 'confirmed']
-                ).exists():
-                    messages.error(request, 'Это время уже занято!')
-                    del request.session['temp_booking']
-                    return redirect('services')
-                
-                # Создаём запись
-                appointment = Appointment.objects.create(
-                    client_name=user.first_name or phone,  # или просто phone
-                    client_phone=phone,
-                    client_email=user.email or '',
-                    master=master,
-                    date=date_str,
-                    time=time_str,
-                    status='new'
+
+            return render(
+                request,
+                "core/book_datetime_multi.html",
+                {
+                    "services": services,
+                    "master": master,
+                    "total_price": total_price,
+                    "total_duration": total_duration,
+                    "dates": dates,
+                    "free_slots": free_slots,
+                },
+            )
+
+        # Второй POST: подтверждение записи + авторизация
+        elif "date" in request.POST:
+            date_str = request.POST["date"]
+            time_str = request.POST["time"]
+            client_name = request.POST["client_name"]
+            phone = request.POST["phone"]
+            client_email = request.POST.get("client_email", "")
+            password = request.POST["password"]
+            password2 = request.POST["password2"]
+
+            service_ids = request.POST.getlist("service_ids")
+            master_id = request.POST["master_id"]
+
+            services = Service.objects.filter(id__in=service_ids)
+            master = get_object_or_404(Master, id=master_id)
+
+            # Проверка паролей
+            if password != password2:
+                messages.error(request, "Пароли не совпадают.")
+                return redirect("services")
+
+            # Проверка на занятость
+            if Appointment.objects.filter(
+                master=master,
+                date=date_str,
+                time=time_str,
+                status__in=["new", "confirmed"],
+            ).exists():
+                messages.error(request, "Это время уже занято!")
+                return redirect("services")
+
+            # Авторизация/создание пользователя
+            user = None
+            try:
+                client = Client.objects.get(phone=phone)
+                user = authenticate(request, username=phone, password=password)
+                if not user:
+                    messages.error(request, "Неверный пароль.")
+                    return redirect("services")
+            except Client.DoesNotExist:
+                user = User.objects.create_user(
+                    username=phone, password=password, first_name=client_name
                 )
-                appointment.service.set(services)
-                appointment.save()
-                
-                # Очищаем временные данные
-                if 'temp_booking' in request.session:
-                    del request.session['temp_booking']
-                
-                messages.success(request, 'Запись успешно создана!')
-                return redirect('cabinet_dashboard')  # сразу в кабинет
-                
+                Client.objects.create(user=user, phone=phone)
+                user = authenticate(request, username=phone, password=password)
+
+            # Логин (с print для дебага)
+            if user:
+                login(request, user)
+                print("Пользователь залогинен: ", user.username)  # Дебаг в консоли
             else:
-                messages.error(request, 'Ошибка в форме авторизации.')
-    
-    return redirect('services')
+                messages.error(request, "Ошибка авторизации.")
+                return redirect("services")
+
+            # Создаём запись
+            appointment = Appointment.objects.create(
+                client_name=client_name,
+                client_phone=phone,
+                client_email=client_email,
+                master=master,
+                date=date_str,
+                time=time_str,
+                status="new",
+            )
+            appointment.service.set(services)
+            appointment.save()
+
+            messages.success(request, "Запись успешно создана!")
+            return redirect(
+                "book_success", appointment.id
+            )  # Сначала на успех, где можно оставить отзыв
+
+    return redirect("services")
+
 
 def get_free_slots(request, master_id, date_str):
     master = get_object_or_404(Master, id=master_id)
-    
+
     print(f"Запрос слотов для мастера {master_id}, дата: {date_str}")  # Дебаг в консоли
-    
+
     # Парсим дату с обработкой ошибки
     try:
-        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        selected_date = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError as e:
         print("Ошибка парсинга даты:", e)
-        return JsonResponse({'error': 'Неверный формат даты'}, status=400)
-    
+        return JsonResponse({"error": "Неверный формат даты"}, status=400)
+
     # Все возможные слоты (строки "10:00")
     all_slots = []
     start_time = datetime.strptime("10:00", "%H:%M")
@@ -367,214 +364,246 @@ def get_free_slots(request, master_id, date_str):
     while current <= end_time:
         all_slots.append(current.strftime("%H:%M"))
         current += timedelta(minutes=30)
-    
+
     # Записи на эту дату
     appointments = Appointment.objects.filter(
-        master=master,
-        date=selected_date,
-        status__in=['new', 'confirmed']
+        master=master, date=selected_date, status__in=["new", "confirmed"]
     )
-    
+
     occupied_slots = set()
     for app in appointments:
-        print(f"Найдена запись: {app.time} , длительность услуг: {sum(s.duration for s in app.service.all())} мин")
+        print(
+            f"Найдена запись: {app.time} , длительность услуг: {sum(s.duration for s in app.service.all())} мин"
+        )
         app_start = app.time  # Это объект time
         app_duration = sum(s.duration for s in app.service.all())
-        
+
         # Преобразуем time в datetime для расчёта
         app_start_dt = datetime.combine(selected_date, app_start)
         app_end_dt = app_start_dt + timedelta(minutes=app_duration)
-        
+
         slot_dt = app_start_dt
         while slot_dt < app_end_dt:
             slot_time_str = slot_dt.strftime("%H:%M")
             if slot_time_str in all_slots:
                 occupied_slots.add(slot_time_str)
             slot_dt += timedelta(minutes=30)
-    
+
     free_slots = [slot for slot in all_slots if slot not in occupied_slots]
-    
+
     print("Свободные слоты:", free_slots)
-    
-    return JsonResponse({'free_slots': free_slots})
+
+    return JsonResponse({"free_slots": free_slots})
+
 
 def generate_invoice_pdf(request, appointment_id):
     appointment = get_object_or_404(Appointment, id=appointment_id)
-    
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="schet_{appointment.id}.pdf"'
-    
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="schet_{appointment.id}.pdf"'
+    )
+
     p = canvas.Canvas(response, pagesize=A4)
     width, height = A4
-    
+
     # Используем Arial
     p.setFont("Arial", 18)
-    p.drawCentredString(width / 2, height - 3*cm, "СЧЁТ НА ОПЛАТУ")
-    
+    p.drawCentredString(width / 2, height - 3 * cm, "СЧЁТ НА ОПЛАТУ")
+
     p.setFont("Arial", 12)
-    p.drawString(3*cm, height - 5*cm, f"Номер счёта: {appointment.id}")
-    p.drawString(3*cm, height - 6*cm, f"Дата: {appointment.date.strftime('%d.%m.%Y')}")
-    p.drawString(3*cm, height - 7*cm, f"Клиент: {appointment.client_name}")
-    p.drawString(3*cm, height - 8*cm, f"Телефон: {appointment.client_phone}")
+    p.drawString(3 * cm, height - 5 * cm, f"Номер счёта: {appointment.id}")
+    p.drawString(
+        3 * cm, height - 6 * cm, f"Дата: {appointment.date.strftime('%d.%m.%Y')}"
+    )
+    p.drawString(3 * cm, height - 7 * cm, f"Клиент: {appointment.client_name}")
+    p.drawString(3 * cm, height - 8 * cm, f"Телефон: {appointment.client_phone}")
     if appointment.client_email:
-        p.drawString(3*cm, height - 9*cm, f"Email: {appointment.client_email}")
-    
-    p.drawString(3*cm, height - 11*cm, f"Мастер: {appointment.master.full_name}")
-    p.drawString(3*cm, height - 12*cm, f"Дата и время услуги: {appointment.date.strftime('%d.%m.%Y')} {appointment.time.strftime('%H:%M')}")
-    
-    p.drawString(3*cm, height - 14*cm, "Услуги:")
-    y = height - 15*cm
+        p.drawString(3 * cm, height - 9 * cm, f"Email: {appointment.client_email}")
+
+    p.drawString(3 * cm, height - 11 * cm, f"Мастер: {appointment.master.full_name}")
+    p.drawString(
+        3 * cm,
+        height - 12 * cm,
+        f"Дата и время услуги: {appointment.date.strftime('%d.%m.%Y')} {appointment.time.strftime('%H:%M')}",
+    )
+
+    p.drawString(3 * cm, height - 14 * cm, "Услуги:")
+    y = height - 15 * cm
     for service in appointment.service.all():
-        p.drawString(4*cm, y, f"• {service.name} — {service.price} ₸")
-        y -= 0.8*cm
-    
+        p.drawString(4 * cm, y, f"• {service.name} — {service.price} ₸")
+        y -= 0.8 * cm
+
     p.setFont("Arial", 14)
-    p.drawString(3*cm, y - 1*cm, f"ИТОГО К ОПЛАТЕ: {appointment.total_price()} ₸")
-    
+    p.drawString(3 * cm, y - 1 * cm, f"ИТОГО К ОПЛАТЕ: {appointment.total_price()} ₸")
+
     p.setFont("Arial", 10)
-    p.drawString(3*cm, 3*cm, "Спасибо, что выбрали BladeMaster! 💈")
-    
+    p.drawString(3 * cm, 3 * cm, "Спасибо, что выбрали BladeMaster! 💈")
+
     p.showPage()
     p.save()
-    
+
     return response
+
 
 def generate_act_pdf(request, appointment_id):
     appointment = get_object_or_404(Appointment, id=appointment_id)
-    
-    if appointment.status != 'completed':
-        messages.error(request, 'Акт доступен только для выполненных услуг.')
-        return redirect('book_success', appointment_id)
-    
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="act_{appointment.id}.pdf"'
-    
+
+    if appointment.status != "completed":
+        messages.error(request, "Акт доступен только для выполненных услуг.")
+        return redirect("book_success", appointment_id)
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="act_{appointment.id}.pdf"'
+
     p = canvas.Canvas(response, pagesize=A4)
     width, height = A4
-    
+
     p.setFont("Arial", 18)
-    p.drawCentredString(width / 2, height - 3*cm, "АКТ ВЫПОЛНЕННЫХ РАБОТ")
-    
+    p.drawCentredString(width / 2, height - 3 * cm, "АКТ ВЫПОЛНЕННЫХ РАБОТ")
+
     p.setFont("Arial", 12)
-    p.drawString(3*cm, height - 5*cm, f"Номер акта: {appointment.id}")
-    p.drawString(3*cm, height - 6*cm, f"Дата выполнения: {appointment.date.strftime('%d.%m.%Y')}")
-    p.drawString(3*cm, height - 7*cm, f"Клиент: {appointment.client_name}")
-    p.drawString(3*cm, height - 8*cm, f"Мастер: {appointment.master.full_name}")
-    
-    y = height - 10*cm
-    p.drawString(3*cm, y, "Выполненные услуги:")
-    y -= 1*cm
+    p.drawString(3 * cm, height - 5 * cm, f"Номер акта: {appointment.id}")
+    p.drawString(
+        3 * cm,
+        height - 6 * cm,
+        f"Дата выполнения: {appointment.date.strftime('%d.%m.%Y')}",
+    )
+    p.drawString(3 * cm, height - 7 * cm, f"Клиент: {appointment.client_name}")
+    p.drawString(3 * cm, height - 8 * cm, f"Мастер: {appointment.master.full_name}")
+
+    y = height - 10 * cm
+    p.drawString(3 * cm, y, "Выполненные услуги:")
+    y -= 1 * cm
     for service in appointment.service.all():
-        p.drawString(4*cm, y, f"• {service.name}")
-        y -= 0.8*cm
-    
+        p.drawString(4 * cm, y, f"• {service.name}")
+        y -= 0.8 * cm
+
     p.setFont("Arial", 14)
-    p.drawString(3*cm, y - 1*cm, f"Сумма: {appointment.total_price()} ₸")
-    
+    p.drawString(3 * cm, y - 1 * cm, f"Сумма: {appointment.total_price()} ₸")
+
     p.setFont("Arial", 10)
-    p.drawString(3*cm, 4*cm, "Услуги выполнены в полном объёме.")
-    p.drawString(3*cm, 3*cm, "Подпись мастера: _____________________")
-    p.drawString(3*cm, 2*cm, "Подпись клиента: _____________________")
-    
+    p.drawString(3 * cm, 4 * cm, "Услуги выполнены в полном объёме.")
+    p.drawString(3 * cm, 3 * cm, "Подпись мастера: _____________________")
+    p.drawString(3 * cm, 2 * cm, "Подпись клиента: _____________________")
+
     p.showPage()
     p.save()
-    
+
     return response
 
+
 # Регистрация шрифта Arial с поддержкой русского
-pdfmetrics.registerFont(TTFont('Arial', os.path.join(settings.BASE_DIR, 'static', 'fonts', 'Arial.ttf')))
+pdfmetrics.registerFont(
+    TTFont("Arial", os.path.join(settings.BASE_DIR, "static", "fonts", "Arial.ttf"))
+)
+
 
 @login_required  # Опционально, но пока без авторизации — любой может
 def add_review(request, appointment_id):
     appointment = get_object_or_404(Appointment, id=appointment_id)
-    
+
     # Проверка, есть ли уже отзыв
-    if hasattr(appointment, 'review'):
-        messages.info(request, 'Вы уже оставили отзыв.')
-        return redirect('book_success', appointment_id)
-    
-    if request.method == 'POST':
-        rating = request.POST.get('rating')
-        comment = request.POST.get('comment', '')
-        
+    if hasattr(appointment, "review"):
+        messages.info(request, "Вы уже оставили отзыв.")
+        return redirect("book_success", appointment_id)
+
+    if request.method == "POST":
+        rating = request.POST.get("rating")
+        comment = request.POST.get("comment", "")
+
         if rating:
             Review.objects.create(
-                appointment=appointment,
-                rating=int(rating),
-                comment=comment
+                appointment=appointment, rating=int(rating), comment=comment
             )
-            messages.success(request, 'Спасибо за отзыв! Он появится на странице мастера.')
+            messages.success(
+                request, "Спасибо за отзыв! Он появится на странице мастера."
+            )
         else:
-            messages.error(request, 'Пожалуйста, выберите оценку (кликните на звёздочки).')
-        
-        return redirect('book_success', appointment_id)
-    
-    return redirect('book_success', appointment_id)
+            messages.error(
+                request, "Пожалуйста, выберите оценку (кликните на звёздочки)."
+            )
+
+        return redirect("book_success", appointment_id)
+
+    return redirect("book_success", appointment_id)
+
 
 def cabinet_login(request):
-    if request.method == 'POST':
-        phone = request.POST.get('phone').strip()
-        if phone:
-            # Проверяем, есть ли записи с этим телефоном
-            if Appointment.objects.filter(client_phone=phone).exists():
-                request.session['client_phone'] = phone
-                messages.success(request, 'Добро пожаловать в личный кабинет!')
-                return redirect('cabinet_dashboard')
-            else:
-                messages.error(request, 'Записей с этим номером телефона не найдено.')
+    if request.method == "POST":
+        phone = request.POST.get("phone")
+        password = request.POST.get("password")
+
+        if phone and password:
+            try:
+                client = Client.objects.get(phone=phone)
+                user = authenticate(
+                    request, username=client.user.username, password=password
+                )
+                if user is not None:
+                    login(request, user)
+                    messages.success(request, "Добро пожаловать в личный кабинет!")
+                    return redirect("cabinet_dashboard")
+                else:
+                    messages.error(request, "Неверный пароль.")
+            except Client.DoesNotExist:
+                messages.error(request, "Клиент с таким телефоном не найден.")
         else:
-            messages.error(request, 'Введите номер телефона.')
-    
-    return render(request, 'core/cabinet_login.html')
+            messages.error(request, "Заполните все поля.")
+
+    return render(request, "core/cabinet_login.html")
+
 
 def cabinet_dashboard(request):
-    phone = request.session.get('client_phone')
-    if not phone:
-        return redirect('cabinet_login')
-    
-    appointments = Appointment.objects.filter(client_phone=phone).order_by('-date', '-time')
-    
-    # Добавляем флаг can_cancel для каждой записи
-    for app in appointments:
-        if app.status in ['new', 'confirmed']:
-            app_datetime = timezone.make_aware(datetime.combine(app.date, app.time))
-            if timezone.now() + timedelta(hours=2) < app_datetime:
-                app.can_cancel = True
-            else:
-                app.can_cancel = False
-        else:
-            app.can_cancel = False
-    
-    return render(request, 'core/cabinet_dashboard.html', {
-        'phone': phone,
-        'appointments': appointments,
-    })
+    if not request.user.is_authenticated:
+        return redirect("cabinet_login")
+
+    try:
+        client = request.user.client
+    except:
+        messages.error(request, "Ошибка профиля.")
+        return redirect("cabinet_login")
+
+    appointments = Appointment.objects.filter(client_phone=client.phone).order_by(
+        "-date", "-time"
+    )
+
+    return render(
+        request,
+        "core/cabinet_dashboard.html",
+        {
+            "appointments": appointments,
+        },
+    )
+
 
 def cabinet_cancel_appointment(request, appointment_id):
-    phone = request.session.get('client_phone')
+    phone = request.session.get("client_phone")
     if not phone:
-        return redirect('cabinet_login')
-    
+        return redirect("cabinet_login")
+
     appointment = get_object_or_404(Appointment, id=appointment_id, client_phone=phone)
-    
+
     # Проверка: статус позволяет отмену и время >2 часов
-    if appointment.status not in ['new', 'confirmed']:
-        messages.error(request, 'Эту запись нельзя отменить.')
-        return redirect('cabinet_dashboard')
-    
-    appointment_datetime = timezone.make_aware(datetime.combine(appointment.date, appointment.time))
+    if appointment.status not in ["new", "confirmed"]:
+        messages.error(request, "Эту запись нельзя отменить.")
+        return redirect("cabinet_dashboard")
+
+    appointment_datetime = timezone.make_aware(
+        datetime.combine(appointment.date, appointment.time)
+    )
     if timezone.now() + timedelta(hours=2) >= appointment_datetime:
-        messages.error(request, 'Отмена возможна только за 2 часа до начала записи.')
-        return redirect('cabinet_dashboard')
-    
-    appointment.status = 'cancelled'
+        messages.error(request, "Отмена возможна только за 2 часа до начала записи.")
+        return redirect("cabinet_dashboard")
+
+    appointment.status = "cancelled"
     appointment.save()
-    
-    messages.success(request, 'Запись успешно отменена.')
-    return redirect('cabinet_dashboard')
+
+    messages.success(request, "Запись успешно отменена.")
+    return redirect("cabinet_dashboard")
+
 
 def cabinet_logout(request):
-    if 'client_phone' in request.session:
-        del request.session['client_phone']
-    messages.info(request, 'Вы вышли из кабинета.')
-    return redirect('home')
+    logout(request)
+    messages.info(request, "Вы вышли из личного кабинета.")
+    return redirect("home")

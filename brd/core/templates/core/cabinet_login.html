@@ -7,13 +7,18 @@
             <div class="card shadow-lg border-0">
                 <div class="card-body p-5">
                     <h2 class="text-center mb-4 fw-bold">Личный кабинет</h2>
-                    <p class="text-center text-muted mb-4">Введите телефон из вашей записи</p>
+                    <p class="text-center text-muted mb-4">Войдите по телефону и паролю</p>
                     
                     <form method="post">
                         {% csrf_token %}
-                        <div class="mb-4">
-                            <input type="tel" name="phone" class="form-control form-control-lg text-center" 
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Телефон</label>
+                            <input type="tel" name="phone" id="phoneInput" class="form-control form-control-lg" 
                                    placeholder="+7 (___) ___-__-__" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Пароль</label>
+                            <input type="password" name="password" class="form-control form-control-lg" required>
                         </div>
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary btn-lg">Войти</button>
@@ -21,6 +26,9 @@
                     </form>
                     
                     <div class="text-center mt-4">
+                        <p class="text-muted small">
+                            Нет аккаунта? Создайте его при записи на услугу.
+                        </p>
                         <a href="/" class="text-muted">← Вернуться на главную</a>
                     </div>
                 </div>
@@ -28,4 +36,14 @@
         </div>
     </div>
 </div>
+
+<!-- IMask для маски телефона -->
+<script src="https://unpkg.com/imask"></script>
+<script>
+    IMask(document.getElementById('phoneInput'), {
+        mask: '+{7} (000) 000-00-00',
+        lazy: false,  // Плейсхолдер всегда виден
+        placeholderChar: '_'
+    });
+</script>
 {% endblock %}
