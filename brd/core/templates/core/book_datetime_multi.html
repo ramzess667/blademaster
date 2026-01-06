@@ -17,11 +17,11 @@
             <p class="fw-bold">Общая длительность: {{ total_duration }} мин</p>
         </div>
     </div>
-
+    
     <form method="post" id="bookingForm">
         {% csrf_token %}
 
-        <!-- Скрытые поля — обязательно! -->
+        <!-- Скрытые поля для передачи данных -->
         <input type="hidden" name="master_id" value="{{ master.id }}">
         {% for service in services %}
         <input type="hidden" name="service_ids" value="{{ service.id }}">
@@ -34,43 +34,51 @@
                 <input type="hidden" name="date" id="selectedDate">
             </div>
             <div class="col-md-6">
-    <label class="fw-bold">Время:</label>
-    <div class="d-flex flex-wrap gap-2" id="timeButtons">
-        {% if free_slots %}
-            {% for time in free_slots %}
-            <button type="button" class="btn btn-outline-primary time-btn" data-time="{{ time }}">{{ time }}</button>
-            {% endfor %}
-        {% else %}
-            <p class="text-danger fw-bold">На эту дату нет свободного времени у мастера</p>
-        {% endif %}
-    </div>
-    <input type="hidden" name="time" id="selectedTime" required>
-</div>
-
-            <h4 class="mt-5">Ваши данные</h4>
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <input type="text" name="client_name" class="form-control" placeholder="Имя" required>
+                <label class="fw-bold">Время:</label>
+                <div class="d-flex flex-wrap gap-2" id="timeButtons">
+                    <!-- Кнопки генерируются JS -->
                 </div>
-                <div class="col-md-6">
-                    <input type="tel" name="client_phone" class="form-control" placeholder="Телефон" required>
-                </div>
-                <div class="col-12">
-                    <input type="email" name="client_email" class="form-control" placeholder="Email (необязательно)">
-                </div>
+                <input type="hidden" name="time" id="selectedTime" required>
             </div>
+        </div>
 
-            <div class="text-center mt-5">
-                <button type="submit" class="btn btn-primary btn-lg">Подтвердить запись</button>
+        <h4 class="mt-5">Ваши данные и авторизация</h4>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="fw-bold">Имя</label>
+                <input type="text" name="client_name" class="form-control" required>
             </div>
+            <div class="col-md-6">
+                <label class="fw-bold">Телефон (для входа в кабинет)</label>
+                <input type="tel" name="phone" class="form-control" placeholder="+7 (___) ___-__-__" required>
+            </div>
+            <div class="col-md-6">
+                <label class="fw-bold">Пароль</label>
+                <input type="password" name="password" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+                <label class="fw-bold">Повторить пароль (для новых клиентов)</label>
+                <input type="password" name="password2" class="form-control">
+            </div>
+            <div class="col-12">
+                <label class="fw-bold">Email (необязательно)</label>
+                <input type="email" name="client_email" class="form-control">
+            </div>
+        </div>
+
+        <div class="text-center mt-5">
+            <button type="submit" class="btn btn-primary btn-lg px-5">Подтвердить запись</button>
+        </div>
     </form>
 </div>
 
-<!-- Flatpickr CDN -->
+<!-- Flatpickr -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+
 <input type="hidden" id="initialDate" value="{{ dates.0|date:'Y-m-d' }}">
+
 <script>
     const timeButtonsContainer = document.getElementById('timeButtons');
     const selectedTimeInput = document.getElementById('selectedTime');
@@ -82,17 +90,12 @@
             timeButtonsContainer.innerHTML = '<p class="text-muted">Выберите дату</p>';
             return;
         }
-        
+
         fetch(`/get-free-slots/${masterId}/${dateStr}/`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Bad response');
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 timeButtonsContainer.innerHTML = '';
-                
+
                 if (data.free_slots && data.free_slots.length > 0) {
                     data.free_slots.forEach(time => {
                         const btn = document.createElement('button');
@@ -115,13 +118,11 @@
                     timeButtonsContainer.innerHTML = '<p class="text-danger fw-bold">На эту дату нет свободного времени</p>';
                 }
             })
-            .catch(error => {
-                console.error('Ошибка:', error);
-                timeButtonsContainer.innerHTML = '<p class="text-warning">Ошибка загрузки времени</p>';
+            .catch(err => {
+                timeButtonsContainer.innerHTML = '<p class="text-warning">Ошибка загрузки</p>';
             });
     }
 
-    // Календарь
     flatpickr("#datepicker", {
         dateFormat: "Y-m-d",
         minDate: "today",
@@ -134,10 +135,8 @@
         }
     });
 
-    // Загрузка при открытии
     loadFreeSlots(initialDate);
 
-    // Проверка формы
     document.getElementById('bookingForm').addEventListener('submit', function(e) {
         if (!document.getElementById('selectedDate').value || !selectedTimeInput.value) {
             alert('Выберите дату и время!');

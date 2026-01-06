@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.core.mail import send_mail
-from .models import Service, Master, Appointment,Review
+from .models import Service, Master, Appointment,Review,User
 from django.utils import timezone
 from django.conf import settings
 from datetime import datetime, timedelta, time as dtime
@@ -14,6 +14,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.colors import HexColor
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login, authenticate
+from .forms import BookingAuthForm
 
 import os
 
@@ -216,7 +218,7 @@ def book_datetime_multi(request):
             total_price = sum(s.price for s in services)
             total_duration = sum(s.duration for s in services)
             
-            # Генерация всех возможных слотов как строк "10:00"
+            # Генерация слотов (твой код — оставляем)
             start_str = "10:00"
             end_str = "22:00"
             start_time = datetime.strptime(start_str, "%H:%M")
@@ -227,9 +229,9 @@ def book_datetime_multi(request):
             current = start_time
             while current <= end_time:
                 all_slots.append(current.strftime("%H:%M"))
-                current = (current + timedelta(minutes=slot_step))
+                current = current + timedelta(minutes=slot_step)
             
-            # Получаем занятые слоты с учётом длительности
+            # Занятые слоты
             appointments = Appointment.objects.filter(
                 master=master,
                 status__in=['new', 'confirmed']
@@ -237,8 +239,7 @@ def book_datetime_multi(request):
             
             occupied_slots = set()
             for app in appointments:
-                app_start_str = app.time.strftime("%H:%M")
-                app_start = datetime.strptime(app_start_str, "%H:%M")
+                app_start = datetime.strptime(app.time.strftime("%H:%M"), "%H:%M")
                 app_duration = sum(s.duration for s in app.service.all())
                 app_end = app_start + timedelta(minutes=app_duration)
                 
@@ -249,12 +250,19 @@ def book_datetime_multi(request):
                         occupied_slots.add(time_str)
                     slot_time += timedelta(minutes=slot_step)
             
-            # Свободные слоты
             free_slots = [slot for slot in all_slots if slot not in occupied_slots]
             
-            # Генерация дат
+            # Даты
             today = timezone.now().date()
             dates = [today + timedelta(days=i) for i in range(30)]
+            
+            # Сохраняем данные в сессии для второго POST
+            request.session['temp_booking'] = {
+                'service_ids': service_ids,
+                'master_id': master_id,
+                'total_price': float(total_price),
+                'total_duration': total_duration,
+            }
             
             return render(request, 'core/book_datetime_multi.html', {
                 'services': services,
@@ -262,50 +270,80 @@ def book_datetime_multi(request):
                 'total_price': total_price,
                 'total_duration': total_duration,
                 'dates': dates,
-                'free_slots': free_slots,  # Только свободные строки "10:00"
+                'free_slots': free_slots,
+                'form': BookingAuthForm(),
             })
         
-        # Второй POST: подтверждение записи
+        # Второй POST: финальное подтверждение с авторизацией
         elif 'date' in request.POST:
-            service_ids = request.POST.getlist('service_ids')
-            master_id = request.POST['master_id']
-            date_str = request.POST['date']
-            time_str = request.POST['time']
-            client_name = request.POST['client_name']
-            client_phone = request.POST['client_phone']
-            client_email = request.POST.get('client_email', '')
+            form = BookingAuthForm(request.POST)
+            temp_data = request.session.get('temp_booking')
             
-            if not service_ids or not master_id:
-                messages.error(request, 'Данные потеряны. Начните заново.')
+            if not temp_data:
+                messages.error(request, 'Сессия истекла. Начните заново.')
                 return redirect('services')
             
-            services = Service.objects.filter(id__in=service_ids)
-            master = get_object_or_404(Master, id=master_id)
-            
-            # Финальная проверка на занятость (на всякий случай)
-            if Appointment.objects.filter(
-                master=master,
-                date=date_str,
-                time=time_str,
-                status__in=['new', 'confirmed']
-            ).exists():
-                messages.error(request, 'Это время уже занято!')
-                return redirect('services')
-            
-            appointment = Appointment.objects.create(
-                client_name=client_name,
-                client_phone=client_phone,
-                client_email=client_email,
-                master=master,
-                date=date_str,
-                time=time_str,
-                status='new'
-            )
-            appointment.service.set(services)
-            appointment.save()
-            
-            messages.success(request, 'Запись успешно создана!')
-            return redirect('book_success', appointment.id)
+            if form.is_valid():
+                phone = form.cleaned_data['phone']
+                password = form.cleaned_data['password']
+                
+                user = None
+                try:
+                    client = Client.objects.get(phone=phone)
+                    user = authenticate(request, username=client.user.username, password=password)
+                    if not user:
+                        messages.error(request, 'Неверный пароль.')
+                        return redirect('services')
+                except Client.DoesNotExist:
+                    # Новый клиент
+                    user = User.objects.create_user(username=phone, password=password)
+                    Client.objects.create(user=user, phone=phone)
+                    user = authenticate(request, username=phone, password=password)
+                
+                login(request, user)
+                
+                # Восстанавливаем данные
+                service_ids = temp_data['service_ids']
+                master_id = temp_data['master_id']
+                date_str = request.POST['date']
+                time_str = request.POST['time']
+                
+                services = Service.objects.filter(id__in=service_ids)
+                master = get_object_or_404(Master, id=master_id)
+                
+                # Проверка на занятость
+                if Appointment.objects.filter(
+                    master=master,
+                    date=date_str,
+                    time=time_str,
+                    status__in=['new', 'confirmed']
+                ).exists():
+                    messages.error(request, 'Это время уже занято!')
+                    del request.session['temp_booking']
+                    return redirect('services')
+                
+                # Создаём запись
+                appointment = Appointment.objects.create(
+                    client_name=user.first_name or phone,  # или просто phone
+                    client_phone=phone,
+                    client_email=user.email or '',
+                    master=master,
+                    date=date_str,
+                    time=time_str,
+                    status='new'
+                )
+                appointment.service.set(services)
+                appointment.save()
+                
+                # Очищаем временные данные
+                if 'temp_booking' in request.session:
+                    del request.session['temp_booking']
+                
+                messages.success(request, 'Запись успешно создана!')
+                return redirect('cabinet_dashboard')  # сразу в кабинет
+                
+            else:
+                messages.error(request, 'Ошибка в форме авторизации.')
     
     return redirect('services')
 
