@@ -14,7 +14,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.colors import HexColor
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login, authenticate, logout
 from .forms import BookingAuthForm
 
 import os
@@ -269,26 +269,19 @@ def book_datetime_multi(request):
                 },
             )
 
-        # Второй POST: подтверждение записи + авторизация
+        # Второй POST: подтверждение + авторизация
         elif "date" in request.POST:
             date_str = request.POST["date"]
             time_str = request.POST["time"]
             client_name = request.POST["client_name"]
             phone = request.POST["phone"]
             client_email = request.POST.get("client_email", "")
-            password = request.POST["password"]
-            password2 = request.POST["password2"]
 
             service_ids = request.POST.getlist("service_ids")
             master_id = request.POST["master_id"]
 
             services = Service.objects.filter(id__in=service_ids)
             master = get_object_or_404(Master, id=master_id)
-
-            # Проверка паролей
-            if password != password2:
-                messages.error(request, "Пароли не совпадают.")
-                return redirect("services")
 
             # Проверка на занятость
             if Appointment.objects.filter(
@@ -300,28 +293,35 @@ def book_datetime_multi(request):
                 messages.error(request, "Это время уже занято!")
                 return redirect("services")
 
-            # Авторизация/создание пользователя
-            user = None
-            try:
-                client = Client.objects.get(phone=phone)
-                user = authenticate(request, username=phone, password=password)
-                if not user:
-                    messages.error(request, "Неверный пароль.")
+            # Если залогинен — используем данные из профиля
+            if request.user.is_authenticated:
+                try:
+                    client = request.user.client
+                    phone = client.phone
+                    client_name = request.user.first_name or client_name
+                    client_email = request.user.email or client_email
+                except Client.DoesNotExist:
+                    messages.error(request, "Ошибка профиля. Выйдите и войдите заново.")
                     return redirect("services")
-            except Client.DoesNotExist:
+            else:
+                # Для нового клиента — пароль из формы
+                password = request.POST["password"]
+                password2 = request.POST["password2"]
+                if password != password2:
+                    messages.error(request, "Пароли не совпадают.")
+                    return redirect("services")
+
+                # Создаём нового
+                # Создаём нового
                 user = User.objects.create_user(
-                    username=phone, password=password, first_name=client_name
+                    username=phone,
+                    password=password,
+                    first_name=client_name,
+                    email=client_email,
                 )
                 Client.objects.create(user=user, phone=phone)
                 user = authenticate(request, username=phone, password=password)
-
-            # Логин (с print для дебага)
-            if user:
                 login(request, user)
-                print("Пользователь залогинен: ", user.username)  # Дебаг в консоли
-            else:
-                messages.error(request, "Ошибка авторизации.")
-                return redirect("services")
 
             # Создаём запись
             appointment = Appointment.objects.create(
@@ -337,9 +337,7 @@ def book_datetime_multi(request):
             appointment.save()
 
             messages.success(request, "Запись успешно создана!")
-            return redirect(
-                "book_success", appointment.id
-            )  # Сначала на успех, где можно оставить отзыв
+            return redirect("book_success", appointment.id)
 
     return redirect("services")
 
@@ -568,6 +566,18 @@ def cabinet_dashboard(request):
         "-date", "-time"
     )
 
+    # Добавляем флаг can_cancel для каждой записи
+    now = timezone.now()
+    for app in appointments:
+        if app.status in ["new", "confirmed"]:
+            app_datetime = timezone.make_aware(datetime.combine(app.date, app.time))
+            if now + timedelta(hours=2) < app_datetime:
+                app.can_cancel = True
+            else:
+                app.can_cancel = False
+        else:
+            app.can_cancel = False
+
     return render(
         request,
         "core/cabinet_dashboard.html",
@@ -578,13 +588,19 @@ def cabinet_dashboard(request):
 
 
 def cabinet_cancel_appointment(request, appointment_id):
-    phone = request.session.get("client_phone")
-    if not phone:
+    if not request.user.is_authenticated:
         return redirect("cabinet_login")
 
-    appointment = get_object_or_404(Appointment, id=appointment_id, client_phone=phone)
+    try:
+        client = request.user.client
+    except:
+        messages.error(request, "Ошибка профиля.")
+        return redirect("cabinet_login")
 
-    # Проверка: статус позволяет отмену и время >2 часов
+    appointment = get_object_or_404(
+        Appointment, id=appointment_id, client_phone=client.phone
+    )
+
     if appointment.status not in ["new", "confirmed"]:
         messages.error(request, "Эту запись нельзя отменить.")
         return redirect("cabinet_dashboard")
@@ -593,7 +609,7 @@ def cabinet_cancel_appointment(request, appointment_id):
         datetime.combine(appointment.date, appointment.time)
     )
     if timezone.now() + timedelta(hours=2) >= appointment_datetime:
-        messages.error(request, "Отмена возможна только за 2 часа до начала записи.")
+        messages.error(request, "Отмена возможна только за 2 часа до записи.")
         return redirect("cabinet_dashboard")
 
     appointment.status = "cancelled"
