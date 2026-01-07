@@ -34,6 +34,7 @@ class Master(models.Model):
     full_name = models.CharField("ФИО мастера", max_length=100)
     description = models.TextField("Описание / о себе", blank=True)
     photo = models.ImageField("Фотография мастера", upload_to='masters/', blank=True, null=True)
+    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='master_profile')
 
     class Meta:
         verbose_name = "Мастер"

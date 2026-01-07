@@ -6,15 +6,18 @@
         <div class="col-md-6 col-lg-5">
             <div class="card shadow-lg border-0">
                 <div class="card-body p-5">
-                    <h2 class="text-center mb-4 fw-bold">Личный кабинет</h2>
-                    <p class="text-center text-muted mb-4">Войдите по телефону и паролю</p>
+                    <h2 class="text-center mb-4 fw-bold">Вход в личный кабинет</h2>
+                    <p class="text-center text-muted mb-4">
+                        Клиенты — по телефону<br>
+                        Мастера — по логину (например, master1)
+                    </p>
                     
                     <form method="post">
                         {% csrf_token %}
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Телефон</label>
-                            <input type="tel" name="phone" id="phoneInput" class="form-control form-control-lg" 
-                                   placeholder="+7 (___) ___-__-__" required>
+                            <label class="form-label fw-bold">Логин или телефон</label>
+                            <input type="text" name="username" id="phoneInput" class="form-control form-control-lg" 
+                                   placeholder="+7 (___) ___-__-__ или master1" required>
                         </div>
                         <div class="mb-4">
                             <label class="form-label fw-bold">Пароль</label>
@@ -37,13 +40,20 @@
     </div>
 </div>
 
-<!-- IMask для маски телефона -->
+<!-- IMask для маски телефона (по желанию, работает только если вводят номер) -->
 <script src="https://unpkg.com/imask"></script>
 <script>
-    IMask(document.getElementById('phoneInput'), {
-        mask: '+{7} (000) 000-00-00',
-        lazy: false,  // Плейсхолдер всегда виден
-        placeholderChar: '_'
+    const input = document.getElementById('phoneInput');
+    
+    // Пробуем применить маску, если вводят номер с +
+    input.addEventListener('input', function() {
+        if (input.value.startsWith('+7') || input.value.startsWith('8') || input.value === '') {
+            IMask(input, {
+                mask: '+{7} (000) 000-00-00',
+                lazy: false,
+                placeholderChar: '_'
+            });
+        }
     });
 </script>
 {% endblock %}

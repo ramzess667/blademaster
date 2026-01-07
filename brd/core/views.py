@@ -16,6 +16,8 @@ from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, authenticate, logout
 from .forms import BookingAuthForm
+from django.contrib.auth import login as auth_login, logout as auth_logout
+from django.contrib.auth.decorators import user_passes_test
 
 import os
 
@@ -529,23 +531,26 @@ def add_review(request, appointment_id):
 
 def cabinet_login(request):
     if request.method == "POST":
-        phone = request.POST.get("phone")
+        username = request.POST.get("username")  # Может быть телефон или логин мастера
         password = request.POST.get("password")
 
-        if phone and password:
-            try:
-                client = Client.objects.get(phone=phone)
-                user = authenticate(
-                    request, username=client.user.username, password=password
-                )
-                if user is not None:
-                    login(request, user)
+        if username and password:
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                login(request, user)
+
+                # Определяем, кто зашёл
+                if hasattr(user, "master_profile"):
+                    messages.success(
+                        request,
+                        f"Добро пожаловать, мастер {user.master_profile.full_name}!",
+                    )
+                    return redirect("master_dashboard")
+                else:
                     messages.success(request, "Добро пожаловать в личный кабинет!")
                     return redirect("cabinet_dashboard")
-                else:
-                    messages.error(request, "Неверный пароль.")
-            except Client.DoesNotExist:
-                messages.error(request, "Клиент с таким телефоном не найден.")
+            else:
+                messages.error(request, "Неверный логин или пароль.")
         else:
             messages.error(request, "Заполните все поля.")
 
@@ -623,3 +628,120 @@ def cabinet_logout(request):
     logout(request)
     messages.info(request, "Вы вышли из личного кабинета.")
     return redirect("home")
+
+
+def is_master(user):
+    return hasattr(user, "master_profile")
+
+
+@user_passes_test(is_master, login_url="master_login")
+def master_dashboard(request):
+    master = request.user.master_profile
+    appointments = Appointment.objects.filter(master=master).order_by("-date", "-time")
+
+    return render(
+        request,
+        "core/master_dashboard.html",
+        {
+            "master": master,
+            "appointments": appointments,
+        },
+    )
+
+
+def master_login(request):
+    if request.method == "POST":
+        username = request.POST["username"]
+        password = request.POST["password"]
+        user = authenticate(request, username=username, password=password)
+        if user is not None and is_master(user):
+            auth_login(request, user)
+            return redirect("master_dashboard")
+        else:
+            messages.error(request, "Неверный логин или пароль, или вы не мастер.")
+
+    return render(request, "core/master_login.html")
+
+
+def master_logout(request):
+    auth_logout(request)
+    return redirect("master_login")
+
+
+@user_passes_test(is_master, login_url="master_login")
+def master_change_status(request, appointment_id, new_status):
+    appointment = get_object_or_404(
+        Appointment, id=appointment_id, master=request.user.master_profile
+    )
+
+    if new_status in ["confirmed", "completed", "no_show"]:
+        appointment.status = new_status
+        appointment.save()
+        messages.success(
+            request, f'Статус изменён на "{appointment.get_status_display()}"'
+        )
+    else:
+        messages.error(request, "Недопустимый статус.")
+
+    return redirect("master_dashboard") @ login_required
+
+
+@login_required
+def master_dashboard(request):
+    if not hasattr(request.user, "master_profile") or not request.user.master_profile:
+        messages.error(request, "Доступ запрещён.")
+        return redirect("cabinet_logout")
+
+    master = request.user.master_profile
+
+    # Фильтр по датам
+    filter_type = request.GET.get("filter", "all")
+    today = timezone.now().date()
+    tomorrow = today + timedelta(days=1)
+
+    if filter_type == "today":
+        appointments = Appointment.objects.filter(master=master, date=today).order_by(
+            "time"
+        )
+    elif filter_type == "tomorrow":
+        appointments = Appointment.objects.filter(
+            master=master, date=tomorrow
+        ).order_by("time")
+    else:
+        appointments = Appointment.objects.filter(master=master).order_by(
+            "-date", "time"
+        )
+
+    # Передаём today и tomorrow в шаблон для бейджей
+    context = {
+        "master": master,
+        "appointments": appointments,
+        "today": today,
+        "tomorrow": tomorrow,
+    }
+
+    return render(request, "core/master_dashboard.html", context)
+
+
+@login_required
+def master_change_status(request, appointment_id, new_status):
+    if not hasattr(request.user, "master_profile") or not request.user.master_profile:
+        messages.error(request, "Доступ запрещён.")
+        return redirect("cabinet_logout")
+
+    appointment = get_object_or_404(
+        Appointment, id=appointment_id, master=request.user.master_profile
+    )
+
+    if new_status in ["confirmed", "completed", "no_show"]:
+        old_status = appointment.get_status_display()
+        appointment.status = new_status
+        appointment.save()
+        messages.success(
+            request,
+            f"Статус записи изменён: {old_status} → {appointment.get_status_display()}",
+        )
+    else:
+        messages.error(request, "Недопустимый статус.")
+
+    return redirect("master_dashboard")

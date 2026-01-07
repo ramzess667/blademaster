@@ -20,4 +20,8 @@ urlpatterns = [
     path('cabinet/dashboard/', views.cabinet_dashboard, name='cabinet_dashboard'),
     path('cabinet/cancel/<int:appointment_id>/', views.cabinet_cancel_appointment, name='cabinet_cancel'),
     path('cabinet/logout/', views.cabinet_logout, name='cabinet_logout'),
+    path('master/login/', views.master_login, name='master_login'),
+    path('master/dashboard/', views.master_dashboard, name='master_dashboard'),
+    path('master/change-status/<int:appointment_id>/<str:new_status>/', views.master_change_status, name='master_change_status'),
+    path('master/logout/', views.master_logout, name='master_logout'),
 ]
