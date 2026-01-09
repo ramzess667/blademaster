@@ -14,61 +14,70 @@
         {% regroup appointments by date as appointments_by_date %}
 
         {% for date_group in appointments_by_date %}
-        <div class="card mb-4 shadow-sm border-0">
-            <div class="card-header bg-dark text-white">
-                <h5 class="mb-0">
-                    {{ date_group.grouper|date:"d E Y" }}
-                    <span class="badge bg-light text-dark ms-2">{{ date_group.list|length }} запис{{ date_group.list|length|pluralize:"ь,и,ей" }}</span>
-                </h5>
+        <div class="card mb-4 shadow-lg border-0 rounded-4 overflow-hidden">
+            <div class="card-header bg-dark text-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">
+                        {{ date_group.grouper|date:"d E Y" }}
+                        <span class="badge bg-light text-dark ms-2 fs-6">{{ date_group.list|length }} запис{{ date_group.list|length|pluralize:"ь,и,ей" }}</span>
+                    </h5>
+                    <div>
+                        {% if date_group.grouper == today %}
+                        <span class="badge bg-info fs-6">Сегодня</span>
+                        {% elif date_group.grouper == tomorrow %}
+                        <span class="badge bg-warning text-dark fs-6">Завтра</span>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Время</th>
-                            <th>Мастер</th>
-                            <th>Услуги</th>
-                            <th>Сумма</th>
-                            <th>Статус</th>
-                            <th>Действия</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for app in date_group.list %}
-                        <tr class="{% if app.status == 'completed' %}table-success{% elif app.status == 'cancelled' %}table-danger{% elif app.status == 'new' %}table-warning{% endif %}"
-                            {% if app.status != 'cancelled' %}onclick="window.location='{% url 'book_success' app.id %}';" style="cursor: pointer;"{% endif %}>
-                            <td class="text-nowrap"><strong>{{ app.time|time:"H:i" }}</strong></td>
-                            <td>{{ app.master.full_name }}</td>
-                            <td>
-                                {% for service in app.service.all %}
-                                <div>{{ service.name }}</div>
-                                {% endfor %}
-                            </td>
-                            <td class="text-nowrap"><strong>{{ app.total_price }} ₸</strong></td>
-                            <td>
-                                <span class="badge 
-                                    {% if app.status == 'new' %}bg-warning text-dark
-                                    {% elif app.status == 'confirmed' %}bg-info
-                                    {% elif app.status == 'completed' %}bg-success
-                                    {% elif app.status == 'cancelled' %}bg-danger
+            <div class="card-body p-0">
+                {% for app in date_group.list %}
+                <div class="p-4 border-bottom hover-bg-light transition-all {% if app.status == 'completed' %}bg-success-subtle{% elif app.status == 'cancelled' %}bg-danger-subtle{% elif app.status == 'new' %}bg-warning-subtle{% endif %}">
+                    <div class="row align-items-start">
+                        <!-- Левая часть -->
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center mb-3">
+                                <h4 class="mb-0 me-3 text-primary fw-bold">{{ app.time|time:"H:i" }}</h4>
+                                <span class="badge rounded-pill fs-6 
+                                    {% if app.status == 'new' %}bg-danger text-white
+                                    {% elif app.status == 'confirmed' %}bg-info text-white
+                                    {% elif app.status == 'completed' %}bg-success text-white
+                                    {% elif app.status == 'cancelled' %}bg-secondary text-white
                                     {% elif app.status == 'no_show' %}bg-dark text-white
                                     {% endif %}">
                                     {{ app.get_status_display }}
+                                    {% if app.status == 'new' %} · Новое{% endif %}
                                 </span>
-                            </td>
-                            <td onclick="event.stopPropagation();">
-                                {% if app.can_cancel %}
-                                <a href="{% url 'cabinet_cancel' app.id %}" 
-                                   class="btn btn-sm btn-outline-danger"
-                                   onclick="return confirm('Отменить запись?')">Отменить</a>
-                                {% else %}
-                                <small class="text-muted">Отмена невозможна</small>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                            </div>
+                            <p class="mb-2"><strong>Мастер:</strong> {{ app.master.full_name }}</p>
+                            <p class="mb-2"><strong>Услуги:</strong></p>
+                            <div class="ps-3">
+                                {% for service in app.service.all %}
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>{{ service.name }}</span>
+                                    <span class="text-muted">{{ service.price }} ₸</span>
+                                </div>
+                                {% endfor %}
+                                <div class="border-top pt-2 mt-2 fw-bold text-success">
+                                    Итого: {{ app.total_price }} ₸
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Правая часть — кнопки -->
+                        <div class="col-md-4 d-flex flex-column align-items-end gap-2 mt-3 mt-md-0">
+                            {% if app.can_cancel %}
+                            <a href="{% url 'cabinet_cancel' app.id %}" 
+                               class="btn btn-sm btn-outline-danger rounded-pill px-4"
+                               onclick="return confirm('Отменить запись?')">Отменить</a>
+                            {% endif %}
+                            {% if app.status != 'cancelled' %}
+                            <a href="{% url 'book_success' app.id %}" 
+                               class="btn btn-sm btn-primary rounded-pill px-4">Детали и PDF</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
         {% endfor %}
@@ -84,4 +93,31 @@
         <a href="/" class="btn btn-outline-primary btn-lg">На главную</a>
     </div>
 </div>
+
+<style>
+    .hover-bg-light {
+        transition: background-color 0.3s ease;
+    }
+    .hover-bg-light:hover {
+        background-color: #f0f0f0 !important;
+    }
+    .card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    }
+    @media (max-width: 768px) {
+        .d-flex.flex-md-row {
+            flex-direction: column !important;
+        }
+        .align-items-end {
+            align-items: flex-start !important;
+        }
+        .btn {
+            width: 100%;
+        }
+    }
+</style>
 {% endblock %}

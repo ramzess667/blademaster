@@ -688,39 +688,39 @@ def master_change_status(request, appointment_id, new_status):
 
 @login_required
 def master_dashboard(request):
-    if not hasattr(request.user, "master_profile") or not request.user.master_profile:
-        messages.error(request, "Доступ запрещён.")
-        return redirect("cabinet_logout")
-
+    if not hasattr(request.user, 'master_profile') or not request.user.master_profile:
+        messages.error(request, 'Доступ запрещён.')
+        return redirect('cabinet_logout')
+    
     master = request.user.master_profile
-
-    # Фильтр по датам
-    filter_type = request.GET.get("filter", "all")
+    
+    filter_type = request.GET.get('filter', 'all')
     today = timezone.now().date()
     tomorrow = today + timedelta(days=1)
-
-    if filter_type == "today":
-        appointments = Appointment.objects.filter(master=master, date=today).order_by(
-            "time"
-        )
-    elif filter_type == "tomorrow":
-        appointments = Appointment.objects.filter(
-            master=master, date=tomorrow
-        ).order_by("time")
+    
+    if filter_type == 'today':
+        appointments = Appointment.objects.filter(master=master, date=today).order_by('time')
+    elif filter_type == 'tomorrow':
+        appointments = Appointment.objects.filter(master=master, date=tomorrow).order_by('time')
     else:
-        appointments = Appointment.objects.filter(master=master).order_by(
-            "-date", "time"
-        )
-
-    # Передаём today и tomorrow в шаблон для бейджей
+        appointments = Appointment.objects.filter(master=master).order_by('-date', 'time')
+    
+    # Статистика для сегодня
+    appointments_today = Appointment.objects.filter(master=master, date=today)
+    total_today = sum(app.total_price() for app in appointments_today)
+    appointments_new = appointments_today.filter(status='new')
+    
     context = {
-        "master": master,
-        "appointments": appointments,
-        "today": today,
-        "tomorrow": tomorrow,
+        'master': master,
+        'appointments': appointments,
+        'appointments_today': appointments_today,
+        'total_today': total_today,
+        'appointments_new': appointments_new,
+        'today': today,
+        'tomorrow': tomorrow,
     }
-
-    return render(request, "core/master_dashboard.html", context)
+    
+    return render(request, 'core/master_dashboard.html', context)
 
 
 @login_required
