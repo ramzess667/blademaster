@@ -19,7 +19,7 @@ from .forms import BookingAuthForm
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import user_passes_test
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from django import template
 import os
@@ -480,10 +480,11 @@ def get_free_slots(request, master_id, date_str):
 def generate_invoice_pdf(request, appointment_id):
     appointment = get_object_or_404(Appointment, id=appointment_id)
 
-    # Регистрируем шрифт ТОЛЬКО здесь (если файл существует)
+    # Регистрируем шрифт Arial (твой путь)
     font_path = os.path.join(settings.BASE_DIR, "core", "static", "fonts", "Arial.ttf")
     if os.path.exists(font_path):
         pdfmetrics.registerFont(TTFont('Arial', font_path))
+        pdfmetrics.registerFont(TTFont('Arial-Bold', font_path))  # Для жирного, если нужно
     else:
         print("Шрифт Arial.ttf не найден — PDF будет без кастомного шрифта")
 
@@ -493,10 +494,10 @@ def generate_invoice_pdf(request, appointment_id):
     doc = SimpleDocTemplate(
         response,
         pagesize=A4,
-        rightMargin=2*cm,
-        leftMargin=2*cm,
-        topMargin=2*cm,
-        bottomMargin=2*cm
+        rightMargin=2.5*cm,
+        leftMargin=2.5*cm,
+        topMargin=3*cm,
+        bottomMargin=2.5*cm
     )
 
     elements = []
@@ -505,68 +506,91 @@ def generate_invoice_pdf(request, appointment_id):
     title_style = ParagraphStyle(
         'Title',
         fontName='Arial',
-        fontSize=24,
+        fontSize=22,
         textColor=colors.black,
-        spaceAfter=12,
-        alignment=1  # центр
-    )
-    normal_style = ParagraphStyle(
-        'Normal',
-        fontName='Arial',
-        fontSize=12,
-        textColor=colors.black,
-        leading=14,
-        spaceAfter=8
+        spaceAfter=18,
+        alignment=1,
+        leading=26
     )
     header_style = ParagraphStyle(
         'Header',
         fontName='Arial',
         fontSize=14,
         textColor=colors.darkgoldenrod,
-        spaceAfter=6,
+        spaceAfter=8,
         alignment=1
     )
+    normal_style = ParagraphStyle(
+        'Normal',
+        fontName='Arial',
+        fontSize=11,
+        textColor=colors.black,
+        leading=13,
+        spaceAfter=6
+    )
+    fontName = 'Arial-Bold' if 'Arial-Bold' in pdfmetrics.getRegisteredFontNames() else 'Arial'
+    bold_style = ParagraphStyle(
+        'Bold',
+        fontName=fontName,  # ← только один раз!
+        fontSize=11,
+        textColor=colors.black,
+        leading=13,
+        spaceAfter=6
+        )
+
+    # Логотип (добавь свой файл в core/static/images/logo.png)
+    logo_path = os.path.join(settings.BASE_DIR, "core", "static", "images", "logo.png")
+    if os.path.exists(logo_path):
+        logo = Image(logo_path, width=8*cm, height=3*cm)
+        logo.hAlign = 'CENTER'
+        elements.append(logo)
+        elements.append(Spacer(1, 0.8*cm))
 
     # Заголовок
-    elements.append(Paragraph("СЧЁТ НА ОПЛАТУ", title_style))
-    elements.append(Spacer(1, 0.8*cm))
+    elements.append(Paragraph("СЧЁТ НА ОПЛАТУ № " + str(appointment.id), title_style))
+    elements.append(Spacer(1, 0.6*cm))
 
-    # Информация о счёте
+    # Информация
     info_data = [
-        [Paragraph(f"<b>Номер счёта:</b> {appointment.id}", normal_style),
-         Paragraph(f"<b>Дата:</b> {appointment.date.strftime('%d.%m.%Y')}", normal_style)],
-        [Paragraph(f"<b>Клиент:</b> {appointment.client_name}", normal_style),
-         Paragraph(f"<b>Телефон:</b> {appointment.client_phone}", normal_style)],
+        [Paragraph("<b>Дата выставления:</b>", bold_style), Paragraph(appointment.date.strftime('%d.%m.%Y'), normal_style)],
+        [Paragraph("<b>Клиент:</b>", bold_style), Paragraph(appointment.client_name, normal_style)],
+        [Paragraph("<b>Телефон:</b>", bold_style), Paragraph(appointment.client_phone, normal_style)],
     ]
     if appointment.client_email:
-        info_data.append([Paragraph(f"<b>Email:</b> {appointment.client_email}", normal_style), ""])
+        info_data.append([Paragraph("<b>Email:</b>", bold_style), Paragraph(appointment.client_email, normal_style)])
 
-    info_table = Table(info_data, colWidths=[9*cm, 9*cm])
+    info_table = Table(info_data, colWidths=[6*cm, 11*cm])
     info_table.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-        ('BACKGROUND', (0,0), (-1,-1), colors.whitesmoke),
+        ('ALIGN', (0,0), (0,-1), 'LEFT'),
+        ('ALIGN', (1,0), (1,-1), 'RIGHT'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('BACKGROUND', (0,0), (0,-1), colors.whitesmoke),
         ('FONTNAME', (0,0), (-1,-1), 'Arial'),
+        ('FONTSIZE', (0,0), (-1,-1), 11),
+        ('LEFTPADDING', (0,0), (0,-1), 12),
+        ('RIGHTPADDING', (1,0), (1,-1), 12),
     ]))
     elements.append(info_table)
-    elements.append(Spacer(1, 1*cm))
+    elements.append(Spacer(1, 1.2*cm))
 
-    # Услуги — таблица
+    # Услуги
     elements.append(Paragraph("Услуги:", header_style))
     elements.append(Spacer(1, 0.4*cm))
 
-    service_data = [["№", "Услуга", "Цена (₸)"]]
+    service_data = [["№", "Наименование услуги", "Стоимость (₸)"]]
+    total = 0
     for idx, service in enumerate(appointment.service.all(), 1):
         service_data.append([
             str(idx),
             service.name,
-            f"{service.price}"
+            f"{service.price:,.0f}"
         ])
+        total += service.price
 
-    service_data.append(["", Paragraph("<b>ИТОГО К ОПЛАТЕ:</b>", normal_style), f"<b>{appointment.total_price()} ₸</b>"])
+    service_data.append(["", Paragraph("<b>ИТОГО К ОПЛАТЕ:</b>", bold_style), f"<b>{total:,.0f} ₸</b>"])
 
-    service_table = Table(service_data, colWidths=[1.5*cm, 12*cm, 4.5*cm])
+    service_table = Table(service_data, colWidths=[1.5*cm, 11.5*cm, 5*cm])
     service_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.darkgoldenrod),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
@@ -574,22 +598,23 @@ def generate_invoice_pdf(request, appointment_id):
         ('FONTNAME', (0,0), (-1,0), 'Arial'),
         ('FONTSIZE', (0,0), (-1,0), 12),
         ('BOTTOMPADDING', (0,0), (-1,0), 12),
-        ('BACKGROUND', (0,1), (-1,-1), colors.whitesmoke),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('BACKGROUND', (0,1), (-1,-2), colors.whitesmoke),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('ALIGN', (0,0), (0,-1), 'CENTER'),
-        ('ALIGN', (2,0), (2,-1), 'RIGHT'),
+        ('ALIGN', (0,1), (0,-1), 'CENTER'),
+        ('ALIGN', (2,1), (2,-1), 'RIGHT'),
         ('FONTNAME', (0,1), (-1,-1), 'Arial'),
         ('FONTSIZE', (0,1), (-1,-1), 11),
-        ('TEXTCOLOR', (-1,-1), (-1,-1), colors.darkgreen),
+        ('TEXTCOLOR', (2,-1), (2,-1), colors.darkgreen),
+        ('LINEBELOW', (0,-1), (-1,-1), 1.5, colors.darkgoldenrod),
     ]))
     elements.append(service_table)
-    elements.append(Spacer(1, 1.5*cm))
+    elements.append(Spacer(1, 1.8*cm))
 
-    # Нижний колонтитул
-    elements.append(Paragraph("Спасибо, что выбрали BladeMaster! 💈", normal_style))
-    elements.append(Spacer(1, 0.5*cm))
-    elements.append(Paragraph("Мы ждём вас снова!", normal_style))
+    # Благодарность и подпись
+    elements.append(Paragraph("Спасибо за выбор BladeMaster! Мы ценим ваше доверие и ждём вас снова. 💈", normal_style))
+    elements.append(Spacer(1, 1*cm))
+    elements.append(Paragraph("Подпись исполнителя: _______________________________", normal_style))
 
     doc.build(elements)
     return response
@@ -601,12 +626,9 @@ def generate_act_pdf(request, appointment_id):
         messages.error(request, "Акт доступен только для выполненных услуг.")
         return redirect("book_success", appointment_id)
 
-    # Регистрируем шрифт ТОЛЬКО здесь (если файл существует)
-    font_path = os.path.join(settings.BASE_DIR, "core", "static", "fonts", "Arial.ttf")
-    if os.path.exists(font_path):
-        pdfmetrics.registerFont(TTFont('Arial', font_path))
-    else:
-        print("Шрифт Arial.ttf не найден — PDF будет без кастомного шрифта")
+    # Регистрируем шрифт ТОЛЬКО здесь
+    font_path = os.path.join(settings.BASE_DIR, "core", "static", "fonts", "arial.ttf")
+    pdfmetrics.registerFont(TTFont('Arial', font_path))
 
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="act_{appointment.id}.pdf"'
@@ -629,7 +651,7 @@ def generate_act_pdf(request, appointment_id):
         fontSize=24,
         textColor=colors.black,
         spaceAfter=12,
-        alignment=1  # центр
+        alignment=1
     )
     normal_style = ParagraphStyle(
         'Normal',
@@ -660,7 +682,7 @@ def generate_act_pdf(request, appointment_id):
     elements.append(Paragraph("АКТ ВЫПОЛНЕННЫХ РАБОТ", title_style))
     elements.append(Spacer(1, 0.8*cm))
 
-    # Информация об акте
+    # Информация
     info_data = [
         [Paragraph(f"<b>Номер акта:</b> {appointment.id}", normal_style),
          Paragraph(f"<b>Дата выполнения:</b> {appointment.date.strftime('%d.%m.%Y')}", normal_style)],
@@ -679,7 +701,7 @@ def generate_act_pdf(request, appointment_id):
     elements.append(info_table)
     elements.append(Spacer(1, 1*cm))
 
-    # Услуги — таблица
+    # Услуги
     elements.append(Paragraph("Выполненные услуги:", header_style))
     elements.append(Spacer(1, 0.4*cm))
 
@@ -708,7 +730,7 @@ def generate_act_pdf(request, appointment_id):
     elements.append(service_table)
     elements.append(Spacer(1, 1*cm))
 
-    # Итоговая сумма
+    # Сумма
     elements.append(Paragraph(f"<b>Сумма выполненных услуг:</b> {appointment.total_price()} ₸", normal_style))
     elements.append(Spacer(1, 1.5*cm))
 
