@@ -5,21 +5,17 @@
     <div class="row justify-content-center">
         <div class="col-lg-8 col-xxl-7">
             <div class="card bg-dark text-light border-0 rounded-4 shadow-lg">
-                <!-- Заголовок -->
-                <div class="card-header text-white py-5 text-center
-                    {% if appointment.status == 'cancelled' %}bg-danger
-                    {% elif appointment.status == 'completed' %}bg-success
-                    {% elif appointment.status == 'confirmed' %}bg-info
-                    {% else %}bg-warning text-dark{% endif %}">
-                    <h1 class="display-5 fw-bold mb-0">
+                <!-- Заголовок — всегда золотой -->
+                <div class="card-header bg-warning py-5 text-center">
+                    <h1 class="display-5 fw-bold mb-0 text-dark">
                         {% if appointment.status == 'cancelled' %}
-                        Запись отменена
+                            Запись отменена
                         {% elif appointment.status == 'completed' %}
-                        Услуга выполнена
+                            Услуга выполнена
                         {% elif appointment.status == 'confirmed' %}
-                        Запись подтверждена
+                            Запись подтверждена
                         {% else %}
-                        Запись успешно создана
+                            Запись успешно создана
                         {% endif %}
                     </h1>
                 </div>
@@ -54,12 +50,8 @@
                         </div>
                         <div class="col-md-6">
                             <p class="text-muted small mb-1 text-uppercase">Статус</p>
-                            <span class="badge fs-6 px-4 py-2 rounded-pill
-                                {% if appointment.status == 'new' %}bg-warning text-dark
-                                {% elif appointment.status == 'confirmed' %}bg-info
-                                {% elif appointment.status == 'completed' %}bg-success
-                                {% elif appointment.status == 'cancelled' %}bg-danger
-                                {% endif %}">
+                            <!-- Всегда золотой бейджик статуса -->
+                            <span class="badge fs-6 px-4 py-2 rounded-pill bg-warning text-dark">
                                 {{ appointment.get_status_display }}
                             </span>
                         </div>
@@ -82,7 +74,7 @@
                                 {% csrf_token %}
                                 <div class="d-flex justify-content-center gap-3 mb-4">
                                     {% for i in "12345" %}
-                                    <button type="button" class="btn btn-outline-gold star-btn rounded-circle border-2" data-value="{{ i }}">
+                                    <button type="button" class="btn btn-outline-gold star-btn rounded-circle border-2 p-3" data-value="{{ i }}">
                                         <span class="fs-3">★</span>
                                     </button>
                                     {% endfor %}
@@ -119,7 +111,7 @@
                         {% else %}
                         <div class="border-top border-secondary pt-5 mt-5 text-center">
                             <h4 class="fw-bold mb-3 text-gold">Спасибо за отзыв!</h4>
-                            <div class="d-flex justify-content-center gap-1 mb-3">
+                            <div class="d-flex justify-content-center gap-2 mb-3">
                                 {% for i in "12345" %}
                                 <span class="fs-2 {% if forloop.counter <= appointment.review.rating %}text-gold{% else %}text-muted{% endif %}">★</span>
                                 {% endfor %}
@@ -131,35 +123,30 @@
                         {% endif %}
                     {% endif %}
 
-                    <!-- Кнопки действий — все в outline-gold стиле -->
+                    <!-- Кнопки действий -->
                     <div class="text-center mt-5 pt-5 border-top border-secondary">
                         {% if appointment.status in 'new,confirmed' %}
-                        <div class="mb-4">
-                            <p class="text-muted small">Отменить можно не позднее чем за 2 часа до начала</p>
+                        <div class="mb-5">
+                            <p class="text-muted small mb-3">Отменить можно не позднее чем за 2 часа до начала</p>
                             <a href="{% url 'cancel_appointment' appointment.id %}" 
                                class="btn btn-outline-danger px-5 py-3 rounded-pill"
                                onclick="return confirm('Точно отменить запись?')">Отменить запись</a>
                         </div>
                         {% elif appointment.status == 'cancelled' %}
-                        <p class="text-danger fw-medium fs-4 mb-4">Запись отменена</p>
+                        <p class="text-danger fw-medium fs-4 mb-5">Запись отменена</p>
                         {% endif %}
 
                         <div class="d-grid d-md-flex justify-content-md-center gap-3 flex-wrap">
                             {% if appointment.status != 'cancelled' %}
                             <a href="{% url 'generate_invoice_pdf' appointment.id %}" 
-                               class="btn btn-outline-gold text-gold px-5 py-3 rounded-pill" target="_blank">
+                               class="btn btn-outline-gold px-5 py-3 rounded-pill fw-bold"
+                               target="_blank">
                                 Скачать счёт
                             </a>
-                            {% if appointment.status == 'completed' %}
-                            <a href="{% url 'generate_act_pdf' appointment.id %}" 
-                               class="btn btn-outline-gold text-gold px-5 py-3 rounded-pill" target="_blank">
-                                Скачать акт
-                            </a>
-                            {% endif %}
                             {% endif %}
 
-                            <a href="/" class="btn btn-outline-gold text-gold px-5 py-3 rounded-pill">На главную</a>
-                            <a href="/services/" class="btn btn-outline-gold text-gold px-5 py-3 rounded-pill">Записаться снова</a>
+                            <a href="/" class="btn btn-outline-gold px-5 py-3 rounded-pill fw-bold">На главную</a>
+                            <a href="/services/" class="btn btn-outline-gold px-5 py-3 rounded-pill fw-bold">Записаться снова</a>
                         </div>
                     </div>
                 </div>
@@ -173,50 +160,87 @@
         background-color: #121212;
         color: #E0E0E0;
     }
+
     .card {
         background-color: #1E1E1E;
         border-color: #333333;
     }
+
     .text-gold {
         color: #FFD700 !important;
     }
+
     .btn-outline-gold {
         border-color: #FFD700;
         color: #FFD700;
         background-color: transparent;
-        transition: all 0.3s ease;
+        transition: all 0.25s ease;
     }
-    .btn-outline-gold:hover {
+
+    .btn-outline-gold:hover,
+    .btn-outline-gold:focus {
         background-color: #FFD700;
-        color: #000000;
+        color: #000000 !important;
         border-color: #FFD700;
     }
+
     .btn-gold {
         background-color: #FFD700;
         color: #000000;
         border: none;
     }
+
     .form-control {
         background-color: #2A2A2A;
         border-color: #444444;
         color: #E0E0E0;
     }
+
     .form-control::placeholder {
         color: #A0A0A0 !important;
         opacity: 1;
     }
+
     .form-control:focus {
         background-color: #2A2A2A;
         border-color: #FFD700;
         box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.25);
         color: #E0E0E0;
     }
+
     .text-muted {
         color: #A0A0A0 !important;
     }
+
     hr {
         border-color: #444444;
     }
+
+    /* Звёздочки — всегда круглые и компактные */
+    .star-btn {
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .star-btn .fs-3 {
+        line-height: 1;
+        margin: 0;
+    }
+
+    @media (max-width: 576px) {
+        .star-btn {
+            width: 52px;
+            height: 52px;
+        }
+        .star-btn .fs-3 {
+            font-size: 2.1rem;
+        }
+    }
+
     @media (max-width: 768px) {
         .btn {
             width: 100%;

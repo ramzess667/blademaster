@@ -1,126 +1,190 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container my-5">
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-        <h2 class="fw-bold mb-0">Расписание мастера {{ master.full_name }}</h2>
-        <a href="{% url 'cabinet_logout' %}" class="btn btn-outline-secondary btn-sm">Выйти</a>
+
+<!-- Заголовок + Выход -->
+<section class="py-5 border-bottom border-secondary">
+    <div class="container">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+            <h1 class="display-5 fw-bold text-gold mb-0">Расписание мастера {{ master.full_name }}</h1>
+            <a href="{% url 'master_logout' %}" class="btn btn-outline-gold px-4 py-2 fw-bold rounded-pill">
+                Выйти
+            </a>
+        </div>
     </div>
+</section>
 
-    <!-- Фильтр -->
-    <div class="btn-group mb-4 flex-wrap" role="group">
-        <a href="?filter=today" class="btn btn-outline-primary {% if request.GET.filter == 'today' %}active{% endif %}">Сегодня</a>
-        <a href="?filter=tomorrow" class="btn btn-outline-primary {% if request.GET.filter == 'tomorrow' %}active{% endif %}">Завтра</a>
-        <a href="?filter=all" class="btn btn-outline-primary {% if request.GET.filter == 'all' or not request.GET.filter %}active{% endif %}">Все записи</a>
-    </div>
-
-    {% if appointments %}
-        {% regroup appointments by date as appointments_by_date %}
-
-        {% for date_group in appointments_by_date %}
-        <div class="card mb-4 shadow-lg border-0 rounded-4 overflow-hidden">
-            <div class="card-header bg-dark text-white py-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-bold">
-                        {{ date_group.grouper|date:"d E Y" }}
-                        <span class="badge bg-light text-dark ms-2 fs-6">{{ date_group.list|length }} запис{{ date_group.list|length|pluralize:"ь,и,ей" }}</span>
-                    </h5>
-                    <div>
-                        {% if date_group.grouper == today %}
-                        <span class="badge bg-info fs-6">Сегодня</span>
-                        {% elif date_group.grouper == tomorrow %}
-                        <span class="badge bg-warning text-dark fs-6">Завтра</span>
-                        {% endif %}
-                    </div>
-                </div>
+<!-- Фильтр + чекбокс -->
+<section class="py-4">
+    <div class="container">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-4">
+            <!-- Фильтр по дате -->
+            <div class="btn-group flex-wrap justify-content-center gap-2" role="group">
+                <a href="?filter=today" class="btn btn-outline-gold px-4 py-2 fw-bold rounded-pill {% if request.GET.filter == 'today' %}active{% endif %}">
+                    Сегодня
+                </a>
+                <a href="?filter=tomorrow" class="btn btn-outline-gold px-4 py-2 fw-bold rounded-pill {% if request.GET.filter == 'tomorrow' %}active{% endif %}">
+                    Завтра
+                </a>
+                <a href="?filter=all" class="btn btn-outline-gold px-4 py-2 fw-bold rounded-pill {% if request.GET.filter == 'all' or not request.GET.filter %}active{% endif %}">
+                    Все
+                </a>
             </div>
-            <div class="card-body p-0">
-                {% for app in date_group.list %}
-                <div class="p-4 border-bottom hover-bg-light transition-all {% if app.status == 'completed' %}bg-success-subtle{% elif app.status == 'cancelled' %}bg-danger-subtle{% elif app.status == 'new' %}bg-warning-subtle{% endif %}">
-                    <div class="row align-items-start">
-                        <!-- Левая часть: время + клиент + услуги -->
-                        <div class="col-md-8">
-                            <div class="d-flex align-items-center mb-3">
-                                <h4 class="mb-0 me-3 text-primary fw-bold">{{ app.time|time:"H:i" }}</h4>
-                                <span class="badge rounded-pill fs-6 
-                                    {% if app.status == 'new' %}bg-danger text-white
-                                    {% elif app.status == 'confirmed' %}bg-info text-white
-                                    {% elif app.status == 'completed' %}bg-success text-white
-                                    {% elif app.status == 'cancelled' %}bg-secondary text-white
-                                    {% elif app.status == 'no_show' %}bg-dark text-white
-                                    {% endif %}">
-                                    {{ app.get_status_display }}
-                                    {% if app.status == 'new' %} · Новое!{% endif %}
-                                </span>
-                            </div>
-                            <p class="mb-2"><strong>Клиент:</strong> {{ app.client_name }}</p>
-                            <p class="mb-2"><strong>Телефон:</strong> 
-                                <a href="tel:{{ app.client_phone }}" class="text-decoration-none fw-bold">{{ app.client_phone }}</a>
-                            </p>
-                            <p class="mb-2"><strong>Услуги:</strong></p>
-                            <div class="ps-3">
-                                {% for service in app.service.all %}
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span>{{ service.name }}</span>
-                                    <span class="text-muted">{{ service.price }} ₸</span>
-                                </div>
-                                {% endfor %}
-                                <div class="border-top pt-2 mt-2 fw-bold text-success">
-                                    Итого: {{ app.total_price }} ₸
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Правая часть: кнопки действий (ровно сверху справа) -->
-                        <div class="col-md-4 d-flex flex-column align-items-end gap-2 mt-3 mt-md-0">
-                            {% if app.status == 'new' %}
-                            <a href="{% url 'master_change_status' app.id 'confirmed' %}" class="btn btn-primary btn-sm rounded-pill px-4">Подтвердить</a>
-                            {% endif %}
-                            {% if app.status in 'new,confirmed' %}
-                            <a href="{% url 'master_change_status' app.id 'completed' %}" class="btn btn-success btn-sm rounded-pill px-4">Выполнена</a>
-                            <a href="{% url 'master_change_status' app.id 'no_show' %}" class="btn btn-dark btn-sm rounded-pill px-4">Не пришёл</a>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
+
+            <!-- Чекбокс "Показать завершённые" -->
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="showCompleted" 
+                       {% if show_completed %}checked{% endif %}>
+                <label class="form-check-label text-muted fw-medium" for="showCompleted">
+                    Показать завершённые и отменённые
+                </label>
             </div>
         </div>
-        {% endfor %}
-    {% else %}
-    <div class="text-center py-5">
-        <p class="text-muted fs-3">Записей пока нет</p>
     </div>
-    {% endif %}
-</div>
+</section>
+
+<!-- Записи -->
+<section class="py-4 py-md-5">
+    <div class="container">
+        {% if appointments %}
+            {% regroup appointments by date as appointments_by_date %}
+
+            {% for date_group in appointments_by_date %}
+            <div class="card mb-5 bg-dark border-0 shadow-lg rounded-4 overflow-hidden hover-lift">
+                <div class="card-header bg-dark text-gold py-3 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">
+                        {{ date_group.grouper|date:"d E Y" }}
+                        <span class="text-muted ms-2 small">({{ date_group.list|length }} {{ date_group.list|length|pluralize:"запись,записи,записей" }})</span>
+                    </h5>
+                    {% if date_group.grouper == today %}
+                    <span class="text-gold small fw-bold">Сегодня</span>
+                    {% elif date_group.grouper == tomorrow %}
+                    <span class="text-gold small fw-bold">Завтра</span>
+                    {% endif %}
+                </div>
+
+                <div class="card-body p-0">
+                    {% for app in date_group.list %}
+                    <div class="p-4 border-bottom border-secondary hover-bg transition-all">
+                        <div class="row align-items-center g-4">
+                            <!-- Левая часть -->
+                            <div class="col-12 col-md-8">
+                                <div class="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-3">
+                                    <h3 class="mb-0 fw-bold text-gold">{{ app.time|time:"H:i" }}</h3>
+                                    <span class="text-muted small">
+                                        {{ app.get_status_display }}
+                                        {% if app.status == 'new' %} · новое{% endif %}
+                                    </span>
+                                </div>
+
+                                <p class="mb-2 text-light"><strong>Клиент:</strong> {{ app.client_name }}</p>
+                                <p class="mb-3 text-light">
+                                    <strong>Телефон:</strong> 
+                                    <a href="tel:{{ app.client_phone }}" class="text-gold text-decoration-none fw-bold">{{ app.client_phone }}</a>
+                                </p>
+
+                                <h6 class="text-gold mb-2">Услуги:</h6>
+                                <div class="ps-3 text-light">
+                                    {% for service in app.service.all %}
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>{{ service.name }}</span>
+                                        <span class="text-gold">{{ service.price }} ₸</span>
+                                    </div>
+                                    {% endfor %}
+                                    <div class="border-top border-secondary pt-2 mt-2 fw-bold text-gold">
+                                        Итого: {{ app.total_price }} ₸
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Правая часть: кнопки -->
+                            <div class="col-12 col-md-4 d-flex flex-column gap-2 align-items-md-end">
+                                {% if app.status == 'new' %}
+                                <a href="{% url 'master_change_status' app.id 'confirmed' %}" class="btn btn-outline-gold btn-md rounded-pill fw-bold w-100 w-md-auto">
+                                    Подтвердить
+                                </a>
+                                {% endif %}
+                                {% if app.status in 'new,confirmed' %}
+                                <a href="{% url 'master_change_status' app.id 'completed' %}" class="btn btn-outline-gold btn-md rounded-pill fw-bold w-100 w-md-auto">
+                                    Выполнена
+                                </a>
+                                <a href="{% url 'master_change_status' app.id 'no_show' %}" class="btn btn-outline-gold btn-md rounded-pill fw-bold w-100 w-md-auto">
+                                    Не пришёл
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="text-center py-5">
+            <h3 class="text-muted fs-3">Записей пока нет</h3>
+            <p class="text-muted">Новые записи появятся здесь автоматически</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- JS для чекбокса -->
+<script>
+    document.getElementById('showCompleted').addEventListener('change', function() {
+        const url = new URL(window.location);
+        if (this.checked) {
+            url.searchParams.set('show_completed', '1');
+        } else {
+            url.searchParams.delete('show_completed');
+        }
+        window.location = url;
+    });
+</script>
 
 <style>
-    .hover-bg-light {
-        transition: background-color 0.3s ease;
-    }
-    .hover-bg-light:hover {
-        background-color: #f8f9fa !important;
-    }
-    .card {
+    .hover-lift {
         transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-    .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    .hover-lift:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4) !important;
+    }
+    .hover-bg:hover {
+        background-color: rgba(255, 215, 0, 0.08) !important;
+    }
+    .btn-outline-gold {
+        border-color: #FFD700;
+        color: #FFD700;
+        transition: all 0.25s ease;
+    }
+    .btn-outline-gold:hover,
+    .btn-outline-gold.active {
+        background-color: #FFD700;
+        color: #000;
+    }
+    .btn-md {
+        min-width: 140px;
     }
     @media (max-width: 768px) {
-        .btn-group .btn {
+        .btn-group {
+            flex-direction: column;
+            width: 100%;
+        }
+        .btn-outline-gold {
             width: 100%;
             margin-bottom: 0.5rem;
-        }
-        .align-items-end {
-            align-items: flex-start !important;
-        }
-        .d-flex.flex-column.align-items-end {
-            align-items: stretch !important;
         }
         .btn {
             width: 100%;
         }
+        .row.align-items-center {
+            flex-direction: column;
+            align-items: flex-start !important;
+        }
+        .align-items-md-end {
+            align-items: stretch !important;
+        }
     }
 </style>
+
 {% endblock %}

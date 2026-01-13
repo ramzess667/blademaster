@@ -1,56 +1,169 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container my-5">
-    <h1 class="text-center mb-5 fw-bold">Выбранные услуги</h1>
-    
-    <div class="card mx-auto mb-5" style="max-width: 600px;">
-        <div class="card-body">
-            <ul>
-                {% for service in services %}
-                <li><strong>{{ service.name }}</strong> — {{ service.price }} ₸ ({{ service.duration }} мин)</li>
-                {% endfor %}
-            </ul>
-            <p class="fw-bold">Общая сумма: {{ total_price }} ₸</p>
-            <p class="fw-bold">Общая длительность: {{ total_duration }} мин</p>
+
+<!-- Заголовок страницы -->
+<section class="py-5 text-center border-bottom border-secondary">
+    <div class="container" data-aos="fade-down">
+        <h1 class="display-5 fw-bold text-gold mb-3">Выбранные услуги</h1>
+        <p class="lead text-muted">Выберите мастера для вашей записи</p>
+    </div>
+</section>
+
+<!-- Сводка выбранных услуг (компактно) -->
+<section class="py-4 bg-secondary bg-opacity-10">
+    <div class="container" data-aos="fade-up">
+        <div class="card bg-dark border-0 shadow-lg mx-auto" style="max-width: 700px;">
+            <div class="card-body p-3 p-md-5">
+                <h4 class="text-gold fw-bold mb-3 text-center">Ваши услуги</h4>
+                <ul class="list-group list-group-flush mb-3">
+                    {% for service in services %}
+                    <li class="list-group-item bg-transparent border-secondary text-light d-flex justify-content-between align-items-center">
+                        <span>{{ service.name }}</span>
+                        <span class="text-gold">{{ service.price }} ₸ ({{ service.duration }} мин)</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="d-flex justify-content-between fw-bold fs-5">
+                    <span class="text-gold">Итого:</span>
+                    <span class="text-gold">{{ total_price }} ₸</span>
+                </div>
+                <div class="d-flex justify-content-between text-muted mt-2">
+                    <span>Длительность:</span>
+                    <span>{{ total_duration }} мин</span>
+                </div>
+            </div>
         </div>
     </div>
+</section>
 
-    <h2 class="text-center mb-4">Выберите мастера</h2>
+<!-- Выбор мастера -->
+<section class="py-5">
+    <div class="container">
+        <h2 class="text-center fw-bold text-gold mb-5" data-aos="fade-up">Выберите мастера</h2>
 
-    <form method="post" action="{% url 'book_datetime_multi' %}">
-        {% csrf_token %}
-        
-        <!-- Скрытые поля с ID услуг -->
-        {% for service in services %}
-        <input type="hidden" name="services" value="{{ service.id }}">
-        {% endfor %}
-        
-        <div class="row">
-            {% for master in masters %}
-            <div class="col-md-4 mb-4">
-                <div class="card text-center h-100">
-                    {% if master.photo %}
-                    <img src="{{ master.photo.url }}" class="card-img-top rounded-circle mx-auto mt-3" style="width: 150px; height: 150px; object-fit: cover;">
-                    {% endif %}
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="mt-auto">{{ master.full_name }}</h5>
-                        <p class="flex-grow-1">{{ master.description|truncatewords:20 }}</p>
-                        <div class="form-check mt-auto">
-                            <input class="form-check-input" type="radio" name="master" value="{{ master.id }}" id="master{{ master.id }}" required>
-                            <label class="form-check-label fw-bold" for="master{{ master.id }}">
-                                Выбрать
-                            </label>
+        <form method="post" action="{% url 'book_datetime_multi' %}" id="masterForm">
+            {% csrf_token %}
+            <!-- Скрытые поля с ID услуг -->
+            {% for service in services %}
+            <input type="hidden" name="services" value="{{ service.id }}">
+            {% endfor %}
+
+            <div class="row g-4">
+                {% for master in masters %}
+                <div class="col-12 col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="{% cycle '100' '200' '300' '100' %}">
+                    <div class="card h-100 bg-dark border-0 shadow-lg hover-lift">
+                        <div class="card-body text-center d-flex flex-column p-4">
+                            <!-- Фото -->
+                            <div class="mb-4">
+                                {% if master.photo %}
+                                <img src="{{ master.photo.url }}" class="rounded-circle shadow-lg" style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #FFD700;" alt="{{ master.full_name }}" loading="lazy">
+                                {% else %}
+                                <img src="https://via.placeholder.com/120/1E1E1E/FFD700?text={{ master.full_name|slice:":1" }}" class="rounded-circle shadow-lg" style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #FFD700;" alt="{{ master.full_name }}">
+                                {% endif %}
+                            </div>
+
+                            <!-- Имя и рейтинг -->
+                            <h5 class="fw-bold fs-4 text-gold mb-2">{{ master.full_name }}</h5>
+                            {% if master.reviews_count > 0 %}
+                            <div class="mb-3">
+                                <span class="fs-3 text-gold">
+                                    {% for i in "12345" %}
+                                    <span class="{% if forloop.counter <= master.average_rating|floatformat:0 %}text-gold{% else %}text-muted{% endif %}">★</span>
+                                    {% endfor %}
+                                </span>
+                                <span class="text-muted ms-2">({{ master.average_rating|floatformat:1 }})</span>
+                            </div>
+                            {% else %}
+                            <p class="text-muted mb-3">Пока нет отзывов</p>
+                            {% endif %}
+
+                            <!-- Описание -->
+                            <p class="text-muted flex-grow-1 mb-4">{{ master.description|default:"Опытный мастер с индивидуальным подходом" |truncatewords:20 }}</p>
+
+                            <!-- Радио-кнопка -->
+                            <div class="mt-auto">
+                                <div class="form-check form-check-lg">
+                                    <input class="form-check-input" type="radio" name="master" value="{{ master.id }}" id="master{{ master.id }}" required>
+                                    <label class="form-check-label fw-bold fs-5" for="master{{ master.id }}">
+                                        Выбрать этого мастера
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+                {% empty %}
+                <div class="col-12 text-center py-5">
+                    <p class="text-muted fs-5">Мастера пока не добавлены</p>
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
-        </div>
-        
-        <div class="text-center mt-5">
-            <button type="submit" class="btn btn-primary btn-lg">Далее — дата и время</button>
-        </div>
-    </form>
-</div>
+
+            <!-- Фиксированная кнопка на мобильных + обычная на десктоп -->
+            <div class="fixed-bottom d-md-none bg-dark border-top border-secondary py-3 px-4 shadow-lg" id="mobileActionBar" style="display: none;">
+                <div class="container-fluid">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <button type="submit" class="btn btn-gold btn-lg px-5 fw-bold rounded-pill" disabled id="submitBtnMobile">
+                            Далее → Дата и время
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Обычная кнопка для десктоп -->
+            <div class="text-center mt-5 pt-5 d-none d-md-block" id="desktopSubmit">
+                <button type="submit" class="btn btn-gold btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg" disabled id="submitBtnDesktop">
+                    Далее → Дата и время
+                </button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<script>
+    // Активация кнопки только после выбора мастера
+    const radios = document.querySelectorAll('input[name="master"]');
+    const submitBtnDesktop = document.getElementById('submitBtnDesktop');
+    const submitBtnMobile = document.getElementById('submitBtnMobile');
+    const mobileBar = document.getElementById('mobileActionBar');
+
+    function checkSelection() {
+        const selected = Array.from(radios).some(radio => radio.checked);
+        submitBtnDesktop.disabled = !selected;
+        submitBtnMobile.disabled = !selected;
+        mobileBar.style.display = selected ? 'block' : 'none';
+    }
+
+    radios.forEach(radio => {
+        radio.addEventListener('change', checkSelection);
+    });
+
+    // Инициализация
+    checkSelection();
+
+    // Hover-эффект карточек
+    document.querySelectorAll('.card').forEach(card => {
+        card.addEventListener('mouseenter', () => card.classList.add('hover-lift'));
+        card.addEventListener('mouseleave', () => card.classList.remove('hover-lift'));
+    });
+</script>
+
+<style>
+    .hover-lift {
+        transform: translateY(-10px);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    .form-check-input:checked {
+        background-color: #FFD700;
+        border-color: #FFD700;
+    }
+
+    .fixed-bottom {
+        z-index: 1000;
+    }
+</style>
+
 {% endblock %}

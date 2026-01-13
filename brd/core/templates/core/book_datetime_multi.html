@@ -1,87 +1,164 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container my-5">
-    <h1 class="text-center mb-4 fw-bold">Выбор даты и времени</h1>
 
-    <div class="card mx-auto mb-5" style="max-width: 600px;">
-        <div class="card-body">
-            <p><strong>Мастер:</strong> {{ master.full_name }}</p>
-            <h5>Услуги:</h5>
-            <ul>
-                {% for service in services %}
-                <li>{{ service.name }} — {{ service.price }} ₸ ({{ service.duration }} мин)</li>
-                {% endfor %}
-            </ul>
-            <p class="fw-bold">Общая сумма: {{ total_price }} ₸</p>
-            <p class="fw-bold">Общая длительность: {{ total_duration }} мин</p>
-        </div>
+<!-- Заголовок -->
+<section class="py-5 text-center border-bottom border-secondary">
+    <div class="container" data-aos="fade-down">
+        <h1 class="display-5 fw-bold text-gold mb-3">Выбор даты и времени</h1>
+        <p class="lead text-light">Выберите удобное время для записи</p>
     </div>
+</section>
 
-    <form method="post" id="bookingForm">
-        {% csrf_token %}
-
-        <!-- Скрытые поля -->
-        <input type="hidden" name="master_id" value="{{ master.id }}">
-        {% for service in services %}
-        <input type="hidden" name="service_ids" value="{{ service.id }}">
-        {% endfor %}
-
-        <div class="row g-3 mb-4">
-            <div class="col-md-6">
-                <label class="fw-bold">Дата:</label>
-                <input type="text" id="datepicker" class="form-control" placeholder="Выберите дату" required>
-                <input type="hidden" name="date" id="selectedDate">
-            </div>
-            <div class="col-md-6">
-                <label class="fw-bold">Время:</label>
-                <div class="d-flex flex-wrap gap-2" id="timeButtons">
-                    {% if free_slots %}
-                    {% for time in free_slots %}
-                    <button type="button" class="btn btn-outline-primary time-btn" data-time="{{ time }}">{{ time
-                        }}</button>
+<!-- Сводка услуг (всегда видна) -->
+<section class="py-4">
+    <div class="container" data-aos="fade-up">
+        <div class="card bg-dark border-0 shadow-lg mx-auto" style="max-width: 700px;">
+            <div class="card-body p-4">
+                <h5 class="text-gold fw-bold mb-3 text-center">Ваши данные записи</h5>
+                <p class="text-light mb-2"><strong class="text-gold">Мастер:</strong> {{ master.full_name }}</p>
+                <ul class="list-group list-group-flush mb-3">
+                    {% for service in services %}
+                    <li class="list-group-item bg-transparent border-secondary text-light d-flex justify-content-between py-2">
+                        <span class="text-light">{{ service.name }}</span>
+                        <span class="text-gold">{{ service.price }} ₸ ({{ service.duration }} мин)</span>
+                    </li>
                     {% endfor %}
-                    {% else %}
-                    <p class="text-danger fw-bold">На эту дату нет свободного времени у мастера</p>
-                    {% endif %}
+                </ul>
+                <div class="d-flex justify-content-between fw-bold text-light">
+                    <span class="text-gold">Итого:</span>
+                    <span class="text-gold">{{ total_price }} ₸</span>
                 </div>
-                <input type="hidden" name="time" id="selectedTime" required>
+                <div class="d-flex justify-content-between text-light mt-1">
+                    <span>Длительность:</span>
+                    <span>{{ total_duration }} мин</span>
+                </div>
             </div>
         </div>
+    </div>
+</section>
 
-      <h4 class="mt-5">Ваши данные {% if user.is_authenticated %}и вход (вы уже залогинены){% else %}и авторизация{% endif %}</h4>
-<div class="row g-3">
-    <div class="col-md-6">
-        <label class="fw-bold">Имя</label>
-        <input type="text" name="client_name" class="form-control" value="{% if user.is_authenticated %}{{ user.first_name }}{% endif %}" required>
-    </div>
-    <div class="col-md-6">
-        <label class="fw-bold">Телефон</label>
-        <input type="tel" id="phoneInput" name="phone" class="form-control" value="{% if user.is_authenticated %}{{ user.client.phone }}{% endif %}" required {% if user.is_authenticated %}readonly{% endif %}>
-    </div>
-    {% if not user.is_authenticated %}
-    <div class="col-md-6">
-        <label class="fw-bold">Пароль</label>
-        <input type="password" name="password" class="form-control" required>
-    </div>
-    <div class="col-md-6">
-        <label class="fw-bold">Повторить пароль</label>
-        <input type="password" name="password2" class="form-control">
-    </div>
-    {% endif %}
-    <div class="col-12">
-        <label class="fw-bold">Email (необязательно)</label>
-        <input type="email" name="client_email" class="form-control" value="{% if user.is_authenticated %}{{ user.email }}{% endif %}">
-    </div>
-</div>
+<!-- Форма -->
+<section class="py-5">
+    <div class="container">
+        <form method="post" id="bookingForm">
+            {% csrf_token %}
+            <input type="hidden" name="master_id" value="{{ master.id }}">
+            {% for service in services %}
+            <input type="hidden" name="service_ids" value="{{ service.id }}">
+            {% endfor %}
 
-        <div class="text-center mt-5">
-            <button type="submit" class="btn btn-primary btn-lg">Подтвердить запись</button>
+            <div class="row g-4 mb-5">
+                <!-- Дата -->
+                <div class="col-12 col-md-6">
+                    <label class="fw-bold fs-5 text-gold mb-2 d-block">Дата</label>
+                    <input type="text" id="datepicker" class="form-control form-control-lg bg-dark text-light border-gold" placeholder="Выберите дату" required>
+                    <input type="hidden" name="date" id="selectedDate">
+                </div>
+
+                <!-- Время -->
+                <div class="col-12 col-md-6">
+                    <label class="fw-bold fs-5 text-gold mb-2 d-block">Время</label>
+                    <div class="d-flex flex-wrap gap-2" id="timeButtons">
+                        <!-- Спиннер -->
+                        <div class="spinner-border text-gold mx-auto my-4" role="status" id="timeLoader" style="display: none;">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                        <p id="noSlotsMsg" class="text-danger fw-bold d-none w-100 text-center my-4">На эту дату нет свободного времени</p>
+                    </div>
+                    <input type="hidden" name="time" id="selectedTime" required>
+                </div>
+            </div>
+
+            <!-- Данные клиента -->
+            <h4 class="text-gold fw-bold mb-4">Ваши данные</h4>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="fw-bold text-muted">Имя</label>
+                    <input type="text" name="client_name" class="form-control bg-dark text-light border-gold" value="{% if user.is_authenticated %}{{ user.first_name }}{% endif %}" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="fw-bold text-muted">Телефон</label>
+                    <input type="tel" id="phoneInput" name="phone" class="form-control bg-dark text-light border-gold" value="{% if user.is_authenticated %}{{ user.client.phone }}{% endif %}" required {% if user.is_authenticated %}readonly{% endif %}>
+                </div>
+
+                {% if not user.is_authenticated %}
+                <div class="col-md-6">
+                    <label class="fw-bold text-muted">Пароль</label>
+                    <input type="password" name="password" class="form-control bg-dark text-light border-gold" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="fw-bold text-muted">Повторить пароль</label>
+                    <input type="password" name="password2" class="form-control bg-dark text-light border-gold">
+                </div>
+                {% endif %}
+
+                <div class="col-12">
+                    <label class="fw-bold text-muted">Email (необязательно)</label>
+                    <input type="email" name="client_email" class="form-control bg-dark text-light border-gold" value="{% if user.is_authenticated %}{{ user.email }}{% endif %}">
+                </div>
+            </div>
+
+            
+
+            <!-- Чекбокс оферты -->
+            <div class="form-check mb-4 text-center mt-4">
+                <input class="form-check-input" type="checkbox" name="agree_offer" id="agreeOffer" required>
+                <label class="form-check-label text-light" for="agreeOffer">
+                    Я согласен с <a href="#" data-bs-toggle="modal" data-bs-target="#offerModal" class="text-gold fw-bold">публичной офертой</a>
+                </label>
+            </div>
+
+            <!-- Фиксированная кнопка на мобильных -->
+            <div class="fixed-bottom d-md-none bg-dark border-top border-secondary py-3 px-4 shadow-lg" id="mobileActionBar" style="display: none;">
+                <div class="container-fluid text-center">
+                    <button type="submit" class="btn btn-gold btn-lg px-5 fw-bold rounded-pill shadow-lg" disabled id="submitBtnMobile">
+                        Подтвердить запись
+                    </button>
+                </div>
+            </div>
+
+            <!-- Кнопка для десктоп -->
+            <div class="text-center mt-5 pt-5 d-none d-md-block">
+                <button type="submit" class="btn btn-gold btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg" disabled id="submitBtnDesktop">
+                    Подтвердить запись
+                </button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<!-- Модальное окно оферты -->
+<div class="modal fade" id="offerModal" tabindex="-1" aria-labelledby="offerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content bg-dark text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-gold" id="offerModalLabel">Публичная оферта</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p>Настоящая публичная оферта является официальным предложением барбершопа «BladeMaster» заключить договор на оказание услуг на следующих условиях:</p>
+                
+                <ol class="text-light">
+                    <li>Запись осуществляется через сайт. Оплата — на месте наличными или картой.</li>
+                    <li>Отмена записи менее чем за 2 часа до начала — штраф 50% от стоимости услуги.</li>
+                    <li>Исполнитель не несёт ответственности за опоздания клиента более 15 минут — запись аннулируется.</li>
+                    <li>Заказчик обязуется соблюдать правила поведения в заведении.</li>
+                    <li>Оформление записи означает полное согласие с настоящей офертой.</li>
+                </ol>
+
+                <p class="text-muted small mt-4 text-center">
+                    Барбершоп «BladeMaster», г. Алматы, 2025 год
+                </p>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-gold" data-bs-dismiss="modal">Закрыть</button>
+            </div>
         </div>
-    </form>
+    </div>
 </div>
 
-<!-- Flatpickr и IMask CDN -->
+<!-- CDN -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
@@ -90,7 +167,7 @@
 <input type="hidden" id="initialDate" value="{{ dates.0|date:'Y-m-d' }}">
 
 <script>
-    // Маска для номера +7 (___) ___-__-__
+    // Маска телефона
     IMask(document.getElementById('phoneInput'), {
         mask: '+{7} (000) 000-00-00',
         lazy: false,
@@ -99,44 +176,52 @@
 
     const timeButtonsContainer = document.getElementById('timeButtons');
     const selectedTimeInput = document.getElementById('selectedTime');
+    const selectedDateInput = document.getElementById('selectedDate');
+    const submitBtnDesktop = document.getElementById('submitBtnDesktop');
+    const submitBtnMobile = document.getElementById('submitBtnMobile');
+    const mobileBar = document.getElementById('mobileActionBar');
+    const timeLoader = document.getElementById('timeLoader');
+    const noSlotsMsg = document.getElementById('noSlotsMsg');
     const masterId = '{{ master.id }}';
     const initialDate = document.getElementById('initialDate').value;
 
     function loadFreeSlots(dateStr) {
-        if (!dateStr) {
-            timeButtonsContainer.innerHTML = '<p class="text-muted">Выберите дату</p>';
-            return;
-        }
+        timeButtonsContainer.innerHTML = '';
+        timeLoader.style.display = 'inline-block';
+        noSlotsMsg.classList.add('d-none');
 
         fetch(`/get-free-slots/${masterId}/${dateStr}/`)
             .then(response => response.json())
             .then(data => {
-                timeButtonsContainer.innerHTML = '';
+                timeLoader.style.display = 'none';
 
                 if (data.free_slots && data.free_slots.length > 0) {
                     data.free_slots.forEach(time => {
                         const btn = document.createElement('button');
                         btn.type = 'button';
-                        btn.classList.add('btn', 'btn-outline-primary', 'time-btn');
+                        btn.className = 'btn btn-outline-gold time-btn px-3 py-2 rounded-pill fw-bold';
                         btn.dataset.time = time;
                         btn.textContent = time;
                         btn.addEventListener('click', () => {
                             document.querySelectorAll('.time-btn').forEach(b => {
-                                b.classList.remove('btn-primary');
-                                b.classList.add('btn-outline-primary');
+                                b.classList.remove('btn-gold');
+                                b.classList.add('btn-outline-gold');
                             });
-                            btn.classList.remove('btn-outline-primary');
-                            btn.classList.add('btn-primary');
+                            btn.classList.remove('btn-outline-gold');
+                            btn.classList.add('btn-gold');
                             selectedTimeInput.value = time;
+                            checkFormReady();
                         });
                         timeButtonsContainer.appendChild(btn);
                     });
                 } else {
-                    timeButtonsContainer.innerHTML = '<p class="text-danger fw-bold">На эту дату нет свободного времени</p>';
+                    noSlotsMsg.classList.remove('d-none');
                 }
+                checkFormReady();
             })
-            .catch(err => {
-                timeButtonsContainer.innerHTML = '<p class="text-warning">Ошибка загрузки</p>';
+            .catch(() => {
+                timeLoader.style.display = 'none';
+                timeButtonsContainer.innerHTML = '<p class="text-warning fw-bold">Ошибка загрузки слотов</p>';
             });
     }
 
@@ -147,18 +232,61 @@
         locale: "ru",
         defaultDate: initialDate,
         onChange: function (selectedDates, dateStr) {
-            document.getElementById('selectedDate').value = dateStr;
+            selectedDateInput.value = dateStr;
             loadFreeSlots(dateStr);
         }
     });
 
     loadFreeSlots(initialDate);
 
+    // Проверка формы
+    function checkFormReady() {
+        const dateOk = selectedDateInput.value;
+        const timeOk = selectedTimeInput.value;
+        const ready = dateOk && timeOk;
+        submitBtnDesktop.disabled = !ready;
+        submitBtnMobile.disabled = !ready;
+        mobileBar.style.display = ready ? 'block' : 'none';
+    }
+
     document.getElementById('bookingForm').addEventListener('submit', function (e) {
-        if (!document.getElementById('selectedDate').value || !selectedTimeInput.value) {
+        if (!selectedDateInput.value || !selectedTimeInput.value) {
             alert('Выберите дату и время!');
             e.preventDefault();
         }
     });
 </script>
+
+<style>
+    .time-btn {
+        min-width: 90px;
+        transition: all 0.25s ease;
+    }
+    .time-btn.btn-gold {
+        background-color: #FFD700;
+        color: #000;
+        border: none;
+    }
+    .fixed-bottom {
+        z-index: 1000;
+    }
+    .form-control {
+        background-color: #2A2A2A !important;
+        color: #E0E0E0 !important;
+        border-color: #444444;
+    }
+    .form-control:focus {
+        border-color: #FFD700 !important;
+        box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.25);
+    }
+    @media (max-width: 768px) {
+        .time-btn {
+            width: 48%;
+        }
+        .row.g-4 {
+            flex-direction: column;
+        }
+    }
+</style>
+
 {% endblock %}

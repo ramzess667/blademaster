@@ -1,59 +1,192 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container my-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-5">
-            <div class="card shadow-lg border-0">
-                <div class="card-body p-5">
-                    <h2 class="text-center mb-4 fw-bold">Вход в личный кабинет</h2>
-                    <p class="text-center text-muted mb-4">
-                        Клиенты — по телефону<br>
-                        Мастера — по логину (например, master1)
-                    </p>
-                    
-                    <form method="post">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Логин или телефон</label>
-                            <input type="text" name="username" id="phoneInput" class="form-control form-control-lg" 
-                                   placeholder="+7 (___) ___-__-__ или master1" required>
+
+<!-- Заголовок -->
+<section class="py-5 text-center border-bottom border-secondary">
+    <div class="container" data-aos="fade-down">
+        <h1 class="display-5 fw-bold text-gold mb-3">Вход в личный кабинет</h1>
+        <p class="lead text-light">Выберите роль</p>
+    </div>
+</section>
+
+<!-- Форма входа -->
+<section class="py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card bg-dark border-0 shadow-lg overflow-hidden">
+                    <div class="card-body p-5 p-md-6">
+                        <!-- Переключатель ролей — большой, понятный, без галочек -->
+                        <div class="d-flex flex-column flex-md-row justify-content-center mb-5 gap-3">
+                            <button type="button" class="btn btn-role active px-5 py-3 fw-bold fs-5" data-role="client">
+                                <i class="bi bi-person me-2 fs-4"></i> Я клиент
+                            </button>
+
+                            <button type="button" class="btn btn-role px-5 py-3 fw-bold fs-5" data-role="master">
+                                <i class="bi bi-scissors me-2 fs-4"></i> Я мастер
+                            </button>
                         </div>
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Пароль</label>
-                            <input type="password" name="password" class="form-control form-control-lg" required>
+
+                        {% if messages %}
+                        <div class="alert alert-danger text-center mb-4">
+                            {% for message in messages %}
+                            {{ message }}
+                            {% endfor %}
                         </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary btn-lg">Войти</button>
+                        {% endif %}
+
+                        <form method="post" id="loginForm">
+                            {% csrf_token %}
+
+                            <!-- Единое поле ввода (маска только для клиента) -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold text-light" id="usernameLabel">Телефон</label>
+                                <input type="text" name="username" id="usernameInput" class="form-control form-control-lg bg-secondary text-light border-gold" 
+                                       placeholder="+7 (___) ___-__-__" required autofocus>
+                                <small class="text-muted d-block mt-1" id="usernameHint">Ваш номер телефона</small>
+                            </div>
+
+                            <div class="mb-5">
+                                <label class="form-label fw-bold text-light">Пароль</label>
+                                <input type="password" name="password" class="form-control form-control-lg bg-secondary text-light border-gold" required>
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-gold btn-lg fw-bold rounded-pill shadow-lg" id="submitBtn">
+                                    Войти
+                                    <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" id="loginLoader">
+                                        <span class="visually-hidden">Загрузка...</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </form>
+
+                        <div class="text-center mt-4">
+                            <p class="text-muted small mb-2">
+                                Клиенты: вход по номеру телефона<br>
+                                Мастера: вход по логину от администратора
+                            </p>
+                            <a href="/" class="text-gold text-decoration-none">← Вернуться на главную</a>
                         </div>
-                    </form>
-                    
-                    <div class="text-center mt-4">
-                        <p class="text-muted small">
-                            Нет аккаунта? Создайте его при записи на услугу.
-                        </p>
-                        <a href="/" class="text-muted">← Вернуться на главную</a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+</section>
 
-<!-- IMask для маски телефона (по желанию, работает только если вводят номер) -->
+<!-- IMask и JS -->
 <script src="https://unpkg.com/imask"></script>
 <script>
-    const input = document.getElementById('phoneInput');
-    
-    // Пробуем применить маску, если вводят номер с +
-    input.addEventListener('input', function() {
-        if (input.value.startsWith('+7') || input.value.startsWith('8') || input.value === '') {
-            IMask(input, {
-                mask: '+{7} (000) 000-00-00',
-                lazy: false,
-                placeholderChar: '_'
-            });
+    const usernameInput = document.getElementById('usernameInput');
+    const usernameLabel = document.getElementById('usernameLabel');
+    const usernameHint = document.getElementById('usernameHint');
+    const submitBtn = document.getElementById('submitBtn');
+    const loginLoader = document.getElementById('loginLoader');
+
+    let maskInstance = null;
+
+    function applyPhoneMask() {
+        removePhoneMask();
+        maskInstance = IMask(usernameInput, {
+            mask: '+{7} (000) 000-00-00',
+            lazy: false,
+            placeholderChar: '_'
+        });
+    }
+
+    function removePhoneMask() {
+        if (maskInstance) {
+            maskInstance.destroy();
+            maskInstance = null;
+            // Важно: сбрасываем значение поля, чтобы не осталось старой маски
+            usernameInput.value = '';
+            usernameInput.placeholder = 'Введите логин';
         }
+    }
+
+    // Переключение ролей
+    document.querySelectorAll('.btn-role').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.btn-role').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            const role = this.dataset.role;
+
+            if (role === 'client') {
+                usernameLabel.textContent = 'Телефон';
+                usernameHint.textContent = 'Ваш номер телефона';
+                usernameInput.placeholder = '+7 (___) ___-__-__';
+                applyPhoneMask();
+            } else {
+                usernameLabel.textContent = 'Логин';
+                usernameHint.textContent = 'Логин от администратора';
+                usernameInput.placeholder = 'Введите ваш логин';
+                removePhoneMask();
+            }
+            usernameInput.focus();
+        });
+    });
+
+    // Лоадер при отправке
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+        submitBtn.disabled = true;
+        loginLoader.classList.remove('d-none');
     });
 </script>
+
+<style>
+    .form-control {
+        background-color: #2A2A2A !important;
+        color: #E0E0E0 !important;
+        border-color: #444444;
+    }
+    .form-control::placeholder {
+        color: #A0A0A0 !important;
+        opacity: 1;
+    }
+    .form-control:focus {
+        border-color: #FFD700 !important;
+        box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.25);
+    }
+    .btn-gold {
+        background-color: #FFD700;
+        color: #000;
+        transition: all 0.25s ease;
+    }
+    .btn-gold:hover {
+        background-color: #E6C200;
+        transform: translateY(-2px);
+    }
+    .btn-role {
+        border: 2px solid #FFD700;
+        color: #FFD700;
+        background: transparent;
+        transition: all 0.25s ease;
+        min-width: 180px;
+    }
+    .btn-role.active,
+    .btn-role:hover {
+        background-color: #FFD700;
+        color: #000;
+        transform: translateY(-2px);
+    }
+    .text-light {
+        color: #E0E0E0 !important;
+    }
+    .text-muted {
+        color: #A0A0A0 !important;
+    }
+    @media (max-width: 576px) {
+        .btn-role {
+            width: 100%;
+            min-width: auto;
+        }
+        .card-body {
+            padding: 2rem !important;
+        }
+    }
+</style>
+
 {% endblock %}

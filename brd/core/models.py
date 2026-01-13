@@ -86,6 +86,10 @@ class Appointment(models.Model):
     ], default='new')
     
     created_at = models.DateTimeField("Дата и время создания записи", auto_now_add=True)
+    
+    prepayment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Сумма предоплаты")
+    prepayment_paid = models.BooleanField(default=False, verbose_name="Предоплата оплачена")
+    prepayment_method = models.CharField(max_length=50, blank=True, verbose_name="Способ предоплаты")
 
     class Meta:
         verbose_name = "Запись"

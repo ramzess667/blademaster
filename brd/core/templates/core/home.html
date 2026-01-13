@@ -1,39 +1,113 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="hero" style="background-image: url('https://thumbs.dreamstime.com/b/luxurious-modern-barbershop-interior-stylish-design-black-gold-color-palette-light-plants-mirrors-trendy-barber-chairs-salon-385595635.jpg');">
-    <div class="hero-overlay">
-        <h1 class="display-2 fw-bold">BladeMaster</h1>
-        <p class="lead fs-2">Премиум мужской груминг: стиль, который меняет</p>
-        <a href="/services/" class="btn btn-primary btn-lg mt-4">Записаться</a>
-    </div>
-</div>
 
-<div class="container my-5" data-aos="fade-up">
-    <h2 class="text-center mb-5 fw-bold">До и после: Трансформации наших клиентов</h2>
-    <div id="galleryCarousel" class="carousel slide" data-bs-ride="carousel">
-        <div class="carousel-inner">
-            <div class="carousel-item active">
-                <img src="https://i.ytimg.com/vi/qnMQxwAgBs0/maxresdefault.jpg" class="d-block w-100" style="height: 400px; object-fit: cover;" alt="До/после 1">
+<!-- Hero Section – Главный экран -->
+<section class="hero position-relative text-center text-white" 
+         style="background-image: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.45)), url('https://media.antonovich-design.ae/uploads/gallery/2021/12/antonovich-design-2021o2S5q9V8XqC2.jpg'); 
+                background-size: cover; background-position: center; min-height: 90vh; display: flex; align-items: center;">
+    <div class="container" data-aos="fade-up" data-aos-delay="100">
+        <h1 class="display-3 fw-bold mb-3 text-gold">BladeMaster</h1>
+        <p class="lead fs-3 fw-light mb-5">Премиум мужской груминг в Алматы<br>Стиль, который меняет тебя</p>
+        
+        <div class="d-flex flex-column flex-md-row justify-content-center gap-4">
+            <a href="/services/" class="btn btn-gold btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg">
+                Записаться онлайн
+            </a>
+            <a href="/masters/" class="btn btn-outline-gold btn-lg px-5 py-3 fw-bold rounded-pill">
+                Выбрать мастера
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Преимущества / Почему мы -->
+<section class="py-5 py-md-7 bg-secondary bg-opacity-10">
+    <div class="container" data-aos="fade-up">
+        <h2 class="text-center fw-bold mb-5 text-gold">Почему выбирают BladeMaster</h2>
+        <div class="row g-4 g-md-5 text-center">
+            <div class="col-md-4">
+                <div class="card h-100 bg-dark border-0 shadow">
+                    <div class="card-body p-5">
+                        <div class="fs-1 text-gold mb-3">✂️</div>
+                        <h4 class="fw-bold">Опытные мастера</h4>
+                        <p class="text-muted">Специалисты с 7+ лет опыта и международными сертификатами</p>
+                    </div>
+                </div>
             </div>
-            <div class="carousel-item">
-                <img src="https://static.boredpanda.com/blog/wp-content/uploads/2017/10/before-after-men-haircut-transformations-231-59dcc9c576c01__700.jpg" class="d-block w-100" style="height: 400px; object-fit: cover;" alt="До/после 2">
+            <div class="col-md-4">
+                <div class="card h-100 bg-dark border-0 shadow">
+                    <div class="card-body p-5">
+                        <div class="fs-1 text-gold mb-3">🕒</div>
+                        <h4 class="fw-bold">Удобная онлайн-запись</h4>
+                        <p class="text-muted">24/7 без звонков — выбирай время и мастера в 3 клика</p>
+                    </div>
+                </div>
             </div>
-            <div class="carousel-item">
-                <img src="https://static.boredpanda.com/blog/wp-content/uploads/2017/10/before-after-men-haircut-transformations-223-59dcb4647bb14__700.jpg" class="d-block w-100" style="height: 400px; object-fit: cover;" alt="До/после 3">
-            </div>
-            <div class="carousel-item">
-                <img src="https://plugins-media.makeupar.com/smb/blog/post/2024-04-11/8b0996b3-0b18-45c2-98a9-85d009e1b92a.jpg" class="d-block w-100" style="height: 400px; object-fit: cover;" alt="До/после 4">
+            <div class="col-md-4">
+                <div class="card h-100 bg-dark border-0 shadow">
+                    <div class="card-body p-5">
+                        <div class="fs-1 text-gold mb-3">⭐</div>
+                        <h4 class="fw-bold">Премиум атмосфера</h4>
+                        <p class="text-muted">Комфорт, кофе, музыка и внимание к каждой детали</p>
+                    </div>
+                </div>
             </div>
         </div>
-        <button class="carousel-control-prev" type="button" data-bs-target="#galleryCarousel" data-bs-slide="prev">
-            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-            <span class="visually-hidden">Previous</span>
-        </button>
-        <button class="carousel-control-next" type="button" data-bs-target="#galleryCarousel" data-bs-slide="next">
-            <span class="carousel-control-next-icon" aria-hidden="true"></span>
-            <span class="visually-hidden">Next</span>
-        </button>
     </div>
-</div>
+</section>
+
+<!-- До/После – Карусель -->
+<section class="py-5 py-md-7">
+    <div class="container" data-aos="fade-up">
+        <h2 class="text-center fw-bold mb-5 text-gold">До и после: наши трансформации</h2>
+        
+        <div id="transformationCarousel" class="carousel slide shadow-lg rounded-4 overflow-hidden" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                <div class="carousel-item active">
+                    <img src="https://www.shutterstock.com/image-photo/bearded-guy-before-after-haircut-260nw-1763529938.jpg" 
+                         class="d-block w-100" alt="До/После 1" loading="lazy" style="height: 500px; object-fit: cover;">
+                    <div class="carousel-caption d-none d-md-block">
+                        <h5 class="bg-dark bg-opacity-50 rounded-pill px-4 py-2 d-inline-block">Классический фейд</h5>
+                    </div>
+                </div>
+                <div class="carousel-item">
+                    <img src="https://www.newtimeshair.com/wp-content/uploads/2022/10/hair-system-haircuts-for-balding-men-before-and-after-7-1024x853.jpg" 
+                         class="d-block w-100" alt="До/После 2" loading="lazy" style="height: 500px; object-fit: cover;">
+                    <div class="carousel-caption d-none d-md-block">
+                        <h5 class="bg-dark bg-opacity-50 rounded-pill px-4 py-2 d-inline-block">Преображение зоны лысины</h5>
+                    </div>
+                </div>
+                <div class="carousel-item">
+                    <img src="https://www.shutterstock.com/image-photo/bald-man-before-after-haircut-260nw-1748737343.jpg" 
+                         class="d-block w-100" alt="До/После 3" loading="lazy" style="height: 500px; object-fit: cover;">
+                    <div class="carousel-caption d-none d-md-block">
+                        <h5 class="bg-dark bg-opacity-50 rounded-pill px-4 py-2 d-inline-block">Современный андеркат</h5>
+                    </div>
+                </div>
+                <!-- Можно добавить ещё 2–3 фото по желанию -->
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#transformationCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#transformationCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+            </button>
+        </div>
+    </div>
+</section>
+
+<!-- Кнопка-призыв внизу -->
+<section class="py-5 text-center bg-dark">
+    <div class="container" data-aos="zoom-in">
+        <h3 class="fw-bold mb-4 text-gold">Готов изменить свой стиль?</h3>
+        <p class="lead text-muted mb-4">Запишитесь прямо сейчас — первые 30 минут консультация бесплатно</p>
+        <a href="/services/" class="btn btn-gold btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg">
+            Записаться онлайн →
+        </a>
+    </div>
+</section>
+
 {% endblock %}

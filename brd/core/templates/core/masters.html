@@ -1,88 +1,154 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container my-5">
-    <h1 class="text-center mb-5 fw-bold" data-aos="fade-down">Наши мастера</h1>
-    <div class="row justify-content-center">
-        {% for master in masters %}
-        <div class="col-md-6 col-lg-4 mb-5" data-aos="slide-up">
-            <div class="flip-card" style="height: 450px;">
-                <div class="flip-card-inner">
-                    <div class="flip-card-front d-flex flex-column justify-content-center align-items-center bg-light">
+
+<!-- Заголовок страницы -->
+<section class="py-5 text-center border-bottom border-secondary">
+    <div class="container" data-aos="fade-down">
+        <h1 class="display-5 fw-bold text-gold mb-3">Наши мастера</h1>
+        <p class="lead text-muted">Профессионалы, которые создают ваш стиль</p>
+    </div>
+</section>
+
+<section class="py-5">
+    <div class="container">
+        <div class="row g-4 g-md-5 justify-content-center">
+            {% for master in masters %}
+            <div class="col-12 col-sm-10 col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="{% cycle '100' '200' '300' '100' %}">
+                <div class="master-card bg-dark border border-secondary rounded-4 overflow-hidden shadow-lg mx-auto" style="max-width: 380px;">
+                    <!-- Фото (всегда видно) -->
+                    <div class="position-relative">
                         {% if master.photo %}
-                        <img src="{{ master.photo.url }}" class="rounded-circle mb-3"
-                            style="width: 200px; height: 200px; object-fit: cover;" alt="{{ master.full_name }}">
+                        <img src="{{ master.photo.url }}" class="w-100 object-fit-cover" style="height: 320px;" alt="{{ master.full_name }}" loading="lazy">
                         {% else %}
-                        <img src="https://via.placeholder.com/200?text=Мастер" class="rounded-circle mb-3">
+                        <img src="https://via.placeholder.com/380x320/1E1E1E/FFD700?text={{ master.full_name }}" class="w-100 object-fit-cover" style="height: 320px;" alt="{{ master.full_name }}">
                         {% endif %}
-                        <h5 class="fw-bold">{{ master.full_name }}</h5>
+                        
+                        <!-- Золотой оверлей (только фон, без текста на hover) -->
+                        <div class="position-absolute top-0 start-0 w-100 h-100 bg-gold bg-opacity-15 opacity-0 hover-opacity transition-opacity"></div>
                     </div>
-                    <div
-                        class="flip-card-back d-flex flex-column justify-content-center align-items-center text-white p-4">
-                        <h5 class="fw-bold mb-3">{{ master.full_name }}</h5>
-                        <p class="text-center flex-grow-1">{{ master.description }}</p>
-                        <a href="#" class="btn btn-primary">Записаться к мастеру</a>
+
+                    <!-- Основной контент (всегда видно на мобильных, flip на ПК) -->
+                    <div class="p-4 text-center d-flex flex-column">
+                        <h5 class="fw-bold fs-4 text-gold mb-2">{{ master.full_name }}</h5>
+                        
+                        <!-- Рейтинг -->
+                        {% if master.reviews_count > 0 %}
+                        <div class="mb-3">
+                            <span class="fs-4 text-gold">
+                                {% for i in "12345" %}
+                                <span class="{% if forloop.counter <= master.average_rating|floatformat:0 %}text-gold{% else %}text-muted{% endif %}">★</span>
+                                {% endfor %}
+                            </span>
+                            <span class="text-muted ms-2">({{ master.average_rating|floatformat:1 }})</span>
+                            <span class="text-muted small ms-1">· {{ master.reviews_count }} {{ master.reviews_count|pluralize:"отзыв,отзыва,отзывов" }}</span>
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-3">Пока нет отзывов</p>
+                        {% endif %}
+
+                        <!-- Описание и отзывы (на ПК — flip, на мобильных — всегда видно) -->
+                        <div class="flip-back">
+                            <p class="text-muted mb-4">{{ master.description|default:"Опытный мастер с индивидуальным подходом" }}</p>
+
+                            {% if master.reviews_count > 0 %}
+                            <div class="mb-4">
+                                <h6 class="text-gold small mb-2">Последние отзывы</h6>
+                                {% for review in master.get_reviews|slice:":2" %}
+                                <div class="small border-top border-secondary pt-2 mb-2">
+                                    <span class="text-gold">{{ review.rating }} ★</span>
+                                    {% if review.comment %}
+                                    <p class="mb-1 text-light"><em>"{{ review.comment|truncatewords:12 }}"</em></p>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Кнопка -->
+                        <a href="{% url 'book_select_master' %}?master={{ master.id }}" 
+                           class="btn btn-outline-gold btn-lg w-100 rounded-pill fw-bold mt-3">
+                            Записаться к мастеру
+                        </a>
                     </div>
                 </div>
             </div>
-            <div class="mt-3">
-    {% if master.reviews_count > 0 %}
-        <p class="fw-bold">Рейтинг: {{ master.average_rating|floatformat:1 }} ⭐ ({{ master.reviews_count }} {{ master.reviews_count|pluralize:"отзыв,отзыва,отзывов" }})</p>
-        <div class="small">
-            {% for review in master.get_reviews|slice:":3" %}
-            <div class="border-top pt-2 mb-2">
-                <strong>{{ review.rating }} ⭐</strong>
-                {% if review.comment %}
-                <p class="mb-1"><em>"{{ review.comment }}"</em></p>
-                {% endif %}
-                <small class="text-muted">{{ review.created_at|date:"d.m.Y" }}</small>
+            {% empty %}
+            <div class="col-12 text-center py-5">
+                <p class="text-muted fs-5">Мастера пока не добавлены</p>
             </div>
             {% endfor %}
         </div>
-    {% else %}
-        <p class="text-muted">Пока нет отзывов. Будьте первым!</p>
-    {% endif %}
-</div>
-        </div>
-        {% empty %}
-        <p class="text-center">Мастеров пока нет.</p>
-        {% endfor %}
     </div>
-</div>
+</section>
 
 <style>
-    .flip-card {
-        perspective: 1000px;
-        border-radius: 15px;
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-    }
-
-    .flip-card-inner {
+    .master-card {
         position: relative;
-        width: 100%;
-        height: 100%;
-        text-align: center;
-        transition: transform 0.8s;
-        transform-style: preserve-3d;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
 
-    .flip-card:hover .flip-card-inner {
-        transform: rotateY(180deg);
+    /* Оверлей на hover (фон без текста) */
+    .position-absolute.bg-gold.bg-opacity-15 {
+        opacity: 0;
+        transition: opacity 0.3s ease;
     }
 
-    .flip-card-front,
-    .flip-card-back {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        backface-visibility: hidden;
-        border-radius: 15px;
+    .master-card:hover .position-absolute.bg-gold.bg-opacity-15 {
+        opacity: 1;
     }
 
-    .flip-card-back {
-        transform: rotateY(180deg);
-        background: linear-gradient(45deg, #ffd700, #d4af37);
-        color: #000;
+    /* Flip только на ПК (min-width: 992px) */
+    @media (min-width: 992px) {
+        .master-card {
+            perspective: 1500px;
+        }
+        .front-content .flip-back {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            transform: rotateY(180deg);
+            transition: transform 0.6s ease;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .master-card:hover .front-content .flip-back {
+            transform: rotateY(0deg);
+        }
+        .master-card:hover .front-content > *:not(.flip-back) {
+            transform: rotateY(180deg);
+        }
+        .master-card .front-content > *:not(.flip-back) {
+            transition: transform 0.6s ease;
+            backface-visibility: hidden;
+        }
+    }
+
+    /* На мобильных — нет flip, hover-подъём, оверлей не на фото */
+    @media (max-width: 991px) {
+        .master-card {
+            height: auto;
+        }
+        .flip-back {
+            position: relative !important;
+            transform: none !important;
+            padding: 0;
+            display: block !important;
+        }
+        .master-card:hover {
+            transform: translateY(-12px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5) !important;
+        }
+        .position-absolute.bg-gold.bg-opacity-15 {
+            display: none;  /* убрал оверлей на фото для мобильных */
+        }
     }
 </style>
+
 {% endblock %}

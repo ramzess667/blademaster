@@ -1,55 +1,86 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="ru">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>BladeMaster — Премиум барбершоп в Алматы</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;700&family=Playfair+Display:wght@700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap"
         rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet"> <!-- AOS для анимаций -->
+
+    <!-- AOS animations -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
+
+    <!-- flatpickr -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script> <!-- Русский язык -->
+
     <style>
+        :root {
+            --bg-primary: #121212;
+            --bg-secondary: #1E1E1E;
+            --bg-input: #2A2A2A;
+            --text-primary: #E0E0E0;
+            --text-muted: #A0A0A0;
+            --gold: #FFD700;
+            --gold-dark: #D4AF37;
+        }
+
         body {
             font-family: 'Urbanist', sans-serif;
-            background-color: #fafafa;
-            color: #222;
-            overflow-x: hidden;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
             padding-top: 80px;
-            /* Отступ сверху для навбара — теперь текст не заходит под него */
+            margin: 0;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 992px) {
             body {
-                padding-top: 60px;
+                padding-top: 70px;
             }
-
-            /* Меньше для мобильных */
         }
 
+        /* Навбар */
         .navbar {
-            background-color: rgba(0, 0, 0, 0.85) !important;
-            transition: background 0.3s;
+            background-color: rgba(18, 18, 18, 0.92);
+            backdrop-filter: blur(10px);
+            transition: all 0.4s ease;
+            padding: 1rem 0;
         }
 
         .navbar.scrolled {
             background-color: #000 !important;
+            padding: 0.75rem 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         }
 
         .navbar-brand {
             font-family: 'Playfair Display', serif;
-            font-size: 2.5rem;
-            color: #ffd700 !important;
+            font-size: 2.4rem;
+            color: var(--gold) !important;
+            letter-spacing: -1px;
         }
 
         .nav-link {
-            color: #fff !important;
-            font-weight: 700;
+            color: var(--text-primary) !important;
+            font-weight: 500;
+            transition: color 0.3s;
             position: relative;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: var(--gold) !important;
         }
 
         .nav-link::after {
@@ -57,88 +88,102 @@
             position: absolute;
             width: 0;
             height: 2px;
-            bottom: -5px;
-            left: 0;
-            background: #ffd700;
-            transition: width 0.3s;
+            bottom: -4px;
+            left: 50%;
+            background: var(--gold);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
         }
 
-        .nav-link:hover::after {
-            width: 100%;
+        .nav-link:hover::after,
+        .nav-link.active::after {
+            width: 60%;
         }
 
-        .btn-primary {
-            background: linear-gradient(45deg, #ffd700, #d4af37);
+        /* Dropdown */
+        .dropdown-menu {
+            background-color: var(--bg-secondary);
+            border: 1px solid #333;
+            border-radius: 12px;
+        }
+
+        .dropdown-item {
+            color: var(--text-primary);
+        }
+
+        .dropdown-item:hover,
+        .dropdown-item:focus {
+            background-color: #333;
+            color: var(--gold);
+        }
+
+        /* Кнопки */
+        .btn-gold,
+        .btn-outline-gold {
+            font-weight: 600;
+            border-radius: 50px;
+            transition: all 0.25s ease;
+        }
+
+        .btn-outline-gold {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        .btn-outline-gold:hover,
+        .btn-outline-gold:focus {
+            background-color: var(--gold);
+            color: #000 !important;
+            border-color: var(--gold);
+        }
+
+        .btn-gold {
+            background-color: var(--gold);
+            color: #000;
             border: none;
-            font-weight: 700;
-            box-shadow: 0 4px 10px rgba(255, 215, 0, 0.3);
-            transition: transform 0.2s;
         }
 
-        .btn-primary:hover {
-            transform: scale(1.05);
-        }
-
+        /* Карточки */
         .card {
+            background-color: var(--bg-secondary);
             border: none;
-            border-radius: 15px;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
         .card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+            transform: translateY(-8px);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
         }
 
-        .price {
-            font-size: 1.8em;
-            background: linear-gradient(45deg, #ffd700, #d4af37);
-            -webkit-background-clip: text;
-            color: transparent;
+        /* Текст */
+        .text-gold {
+            color: var(--gold) !important;
         }
 
-        .hero {
-            background-attachment: fixed;
-            /* Parallax эффект */
-            background-size: cover;
-            background-position: center;
-            min-height: 90vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            text-align: center;
-            position: relative;
+        .text-muted {
+            color: var(--text-muted) !important;
         }
 
-        .hero-overlay {
-            background: rgba(0, 0, 0, 0.4);
-            padding: 80px;
-            border-radius: 20px;
-            animation: fadeInUp 1s ease;
-        }
-
+        /* Футер (оставили почти как был, подогнали цвета) */
         .footer {
-            background: linear-gradient(45deg, #000, #222);
-            color: #ffd700;
-            padding: 50px 0;
-            margin-top: 100px;
+            background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
+            color: var(--gold);
+            padding: 3.5rem 0 2.5rem;
+            margin-top: auto;
             clip-path: polygon(0 15%, 100% 0, 100% 100%, 0 100%);
-            /* Необычная форма */
         }
 
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(50px);
-            }
+        .footer p {
+            margin: 0.5rem 0;
+        }
 
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        /* Общие утилиты */
+        hr {
+            border-color: #333;
+            opacity: 0.5;
         }
     </style>
 </head>
@@ -147,27 +192,40 @@
 
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
         <div class="container">
-            <a class="navbar-brand" href="/admin/">BladeMaster</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <a class="navbar-brand d-flex align-items-center" href="/">
+                <img src="{% static 'core/images/logo.png' %}" alt="BladeMaster" height="45" class="me-2">
+                <span>BladeMaster</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link" href="/">Главная</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/services/">Услуги</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/masters/">Мастера</a></li>
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Главная</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if '/services' in request.path %}active{% endif %}"
+                            href="/services/">Услуги</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if '/masters' in request.path %}active{% endif %}"
+                            href="/masters/">Мастера</a>
+                    </li>
 
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                    <li class="nav-item dropdown ms-2 ms-lg-4">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
+                            aria-expanded="false">
                             Личный кабинет
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             {% if user.is_authenticated %}
-                            <li class="dropdown-header">
+                            <li class="dropdown-header text-gold">
                                 {% if user.master_profile %}
                                 Мастер: {{ user.master_profile.full_name }}
                                 {% else %}
-                                Клиент: {{ user.username }}
+                                {{ user.username }}
                                 {% endif %}
                             </li>
                             <li>
@@ -180,7 +238,7 @@
                             {% endif %}
                             <li><a class="dropdown-item text-danger" href="{% url 'cabinet_logout' %}">Выйти</a></li>
                             {% else %}
-                            <li><a class="dropdown-item" href="{% url 'cabinet_login' %}">Войти</a></li>
+                            <li><a class="dropdown-item" href="{% url 'cabinet_login' %}">Войти / Регистрация</a></li>
                             {% endif %}
                         </ul>
                     </li>
@@ -195,18 +253,31 @@
     <footer class="footer text-center mt-auto">
         <div class="container">
             <p class="fs-3 fw-bold">BladeMaster — Стиль, который вдохновляет</p>
-            <p>© 2026, Алматы. Все права защищены.</p>
+            <p class="fs-5">© 2026, Алматы. Все права защищены.</p>
         </div>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
-    <script>AOS.init();</script> <!-- Инициализация AOS -->
     <script>
+        AOS.init({
+            once: true,
+            duration: 800,
+            easing: 'ease-out'
+        });
+
+        // Навбар при скролле
         window.addEventListener('scroll', () => {
-            document.querySelector('.navbar').classList.toggle('scrolled', window.scrollY > 50);
+            document.querySelector('.navbar').classList.toggle('scrolled', window.scrollY > 80);
         });
     </script>
+
+    <!-- flatpickr (подключаем только когда нужен, но можно оставить глобально) -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
 </body>
 
 </html>

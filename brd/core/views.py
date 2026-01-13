@@ -18,18 +18,48 @@ from django.contrib.auth import login, authenticate, logout
 from .forms import BookingAuthForm
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import user_passes_test
-
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from django import template
 import os
+
+
+
+register = template.Library()
+
+@register.filter
+def multiply(value, arg):
+    """
+    Умножает значение на аргумент
+    Использование: {{ total_price|multiply:0.3 }}
+    """
+    try:
+        return float(value) * float(arg)
+    except (ValueError, TypeError):
+        return ''
 
 
 def home(request):
     return render(request, "core/home.html")
 
 
+# views.py
 def services(request):
-    services = Service.objects.all()
-    return render(request, "core/services.html", {"services": services})
+    master_id = request.GET.get('master')
+    selected_master = None
+    if master_id:
+        try:
+            selected_master = Master.objects.get(id=master_id)
+            request.session['selected_master_id'] = master_id  # сохраняем
+        except Master.DoesNotExist:
+            pass
 
+    context = {
+        'services': Service.objects.all(),
+        'selected_master': selected_master,
+    }
+    return render(request, 'core/services.html', context)
 
 def masters(request):
     masters = Master.objects.all()
@@ -90,63 +120,106 @@ def book_step2_datetime(request, service_id, master_id):
             "booked_slots": booked_slots,  # Передаём в шаблон
         },
     )
-
-
-# Шаг 3: Форма подтверждения и сохранение записи
 def book_confirm(request):
-    if request.method == "POST":
-        service_id = request.POST["service_id"]
-        master_id = request.POST["master_id"]
-        date = request.POST["date"]
-        time = request.POST["time"]
-        client_name = request.POST["client_name"]
-        client_phone = request.POST["client_phone"]
-        client_email = request.POST.get("client_email", "")
-
-        service = get_object_or_404(Service, id=service_id)
-        master = get_object_or_404(Master, id=master_id)
-
-        # Создаём запись
-        appointment = Appointment.objects.create(
-            client_name=client_name,
-            client_phone=client_phone,
-            client_email=client_email,
-            master=master,
-            date=date,
-            time=time,
-            status="new",
-        )
-        appointment.service.add(service)
-        appointment.save()
-
-        try:
-            send_mail(
-                "Ваша запись в BladeMaster подтверждена!",
-                f"Здравствуйте, {client_name}!\n\nВы записаны на {service.name} к мастеру {master.full_name}\nДата: {date} {time}\nСумма: {service.price} ₸\n\nСсылка для отмены: http://127.0.0.1:8000/appointment/{appointment.id}/cancel/\n\nСпасибо, что выбрали нас!",
-                "admin@blademaster.kz",
-                [client_email] if client_email else [],
-                fail_silently=False,
-            )
-        except:
-            pass  # В dev падает, если нет SMTP
-        return redirect("book_success", appointment.id)
-        # После appointment.save()
-        return render(request, "core/book_success.html", {"appointment": appointment})
-
-        # Уведомление в консоль (как email)
-        print(f"НОВАЯ ЗАПИСЬ!")
-        print(f"Клиент: {client_name}, {client_phone}, {client_email}")
-        print(f"Услуга: {service.name}")
-        print(f"Мастер: {master.full_name}")
-        print(f"Дата и время: {date} {time}")
-
-        messages.success(
-            request, "Ваша запись успешно создана! Мы ждём вас в BladeMaster 💈"
-        )
+    if request.method != "POST":
         return redirect("home")
 
-    return redirect("home")
+    # Получаем данные из формы
+    service_id = request.POST.get("service_id")
+    master_id = request.POST.get("master_id")
+    date = request.POST.get("date")
+    time = request.POST.get("time")
+    client_name = request.POST.get("client_name")
+    client_phone = request.POST.get("client_phone")
+    client_email = request.POST.get("client_email", "")
+    agree_offer = request.POST.get("agree_offer")  # чекбокс оферты
+    prepayment = request.POST.get("prepayment") == "on"  # чекбокс предоплаты
 
+    # Проверки
+    if not all([service_id, master_id, date, time, client_name, client_phone]):
+        messages.error(request, "Заполните все обязательные поля!")
+        return redirect("book_datetime_multi")
+
+    if not agree_offer:
+        messages.error(request, "Необходимо согласиться с публичной офертой!")
+        return redirect("book_datetime_multi")
+
+    service = get_object_or_404(Service, id=service_id)
+    master = get_object_or_404(Master, id=master_id)
+
+    # Рассчитываем предоплату (30% от суммы всех услуг)
+    total_price = sum(service.price for service in Service.objects.filter(id__in=request.POST.getlist("service_ids")))
+    prepayment_amount = total_price * 0.3 if prepayment else 0
+
+    # Создаём запись
+    appointment = Appointment.objects.create(
+        client_name=client_name,
+        client_phone=client_phone,
+        client_email=client_email,
+        master=master,
+        date=date,
+        time=time,
+        status="new",
+        prepayment_amount=prepayment_amount,
+        prepayment_paid=prepayment,  # пока просто True/False
+        prepayment_method="Kaspi Pay (имитация)" if prepayment else "",
+    )
+    appointment.service.add(service)
+    appointment.save()
+
+    # Безопасно очищаем сессию (если ключ есть)
+    if 'selected_master_id' in request.session:
+        del request.session['selected_master_id']
+
+    # Отправка email клиенту
+    try:
+        send_mail(
+            "Ваша запись в BladeMaster подтверждена!",
+            f"Здравствуйте, {client_name}!\n\n"
+            f"Вы записаны на {service.name} к мастеру {master.full_name}\n"
+            f"Дата: {date} {time}\n"
+            f"Сумма: {total_price} ₸\n"
+            f"Предоплата: {'Да, ' + str(prepayment_amount) + ' ₸' if prepayment else 'Нет'}\n\n"
+            f"Ссылка для отмены: http://127.0.0.1:8000/appointment/{appointment.id}/cancel/\n\n"
+            f"Спасибо, что выбрали нас!",
+            "admin@blademaster.kz",
+            [client_email] if client_email else [],
+            fail_silently=False,
+        )
+    except Exception as e:
+        print(f"Ошибка отправки email клиенту: {e}")
+
+    # Уведомление мастеру (email)
+    if master.email:
+        try:
+            send_mail(
+                "Новая запись в BladeMaster",
+                f"Клиент {client_name} ({client_phone}) записался на {date} {time}\n"
+                f"Услуги: {service.name}\n"
+                f"Сумма: {total_price} ₸\n"
+                f"Предоплата: {'Да' if prepayment else 'Нет'}",
+                "admin@blademaster.kz",
+                [master.email],
+                fail_silently=True,
+            )
+        except Exception as e:
+            print(f"Ошибка отправки email мастеру: {e}")
+
+    # Уведомление в консоль
+    print(f"НОВАЯ ЗАПИСЬ! ID: {appointment.id}")
+    print(f"Клиент: {client_name}, {client_phone}, {client_email}")
+    print(f"Услуга: {service.name}")
+    print(f"Мастер: {master.full_name}")
+    print(f"Дата и время: {date} {time}")
+    print(f"Предоплата: {'Да, ' + str(prepayment_amount) + ' ₸' if prepayment else 'Нет'}")
+
+    # Сообщение пользователю
+    if prepayment:
+        messages.success(request, f"Предоплата {prepayment_amount} ₸ успешно внесена (имитация). Запись подтверждена!")
+    else:
+        messages.success(request, "Ваша запись успешно создана! Мы ждём вас в BladeMaster 💈")
+
+    return redirect("book_success", appointment.id)
 
 # Отмена записи по ID (с проверкой за 2 часа)
 def cancel_appointment(request, appointment_id):
@@ -180,6 +253,10 @@ def book_success(request, appointment_id):
 
 
 def book_select_master(request):
+    master_id = request.POST.get('master_id') or request.session.get('selected_master_id')
+    if master_id:
+        return redirect(reverse('book_datetime_multi') + '?master=' + str(master_id))
+    
     if request.method == "POST":
         service_ids = request.POST.getlist("services")
 
@@ -208,6 +285,10 @@ def book_select_master(request):
 
 def book_datetime_multi(request):
     if request.method == "POST":
+        master_id = request.GET.get('master') or request.session.get('selected_master_id')
+        if master_id:
+            master = get_object_or_404(Master, id=master_id)
+    # используй master в контексте/логике ниже
         # Первый POST: выбор мастера
         if "master" in request.POST:
             service_ids = request.POST.getlist("services")
@@ -270,7 +351,7 @@ def book_datetime_multi(request):
                     "free_slots": free_slots,
                 },
             )
-
+        
         # Второй POST: подтверждение + авторизация
         elif "date" in request.POST:
             date_str = request.POST["date"]
@@ -399,52 +480,119 @@ def get_free_slots(request, master_id, date_str):
 def generate_invoice_pdf(request, appointment_id):
     appointment = get_object_or_404(Appointment, id=appointment_id)
 
+    # Регистрируем шрифт ТОЛЬКО здесь (если файл существует)
+    font_path = os.path.join(settings.BASE_DIR, "core", "static", "fonts", "Arial.ttf")
+    if os.path.exists(font_path):
+        pdfmetrics.registerFont(TTFont('Arial', font_path))
+    else:
+        print("Шрифт Arial.ttf не найден — PDF будет без кастомного шрифта")
+
     response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = (
-        f'attachment; filename="schet_{appointment.id}.pdf"'
+    response["Content-Disposition"] = f'attachment; filename="schet_{appointment.id}.pdf"'
+
+    doc = SimpleDocTemplate(
+        response,
+        pagesize=A4,
+        rightMargin=2*cm,
+        leftMargin=2*cm,
+        topMargin=2*cm,
+        bottomMargin=2*cm
     )
 
-    p = canvas.Canvas(response, pagesize=A4)
-    width, height = A4
+    elements = []
 
-    # Используем Arial
-    p.setFont("Arial", 18)
-    p.drawCentredString(width / 2, height - 3 * cm, "СЧЁТ НА ОПЛАТУ")
-
-    p.setFont("Arial", 12)
-    p.drawString(3 * cm, height - 5 * cm, f"Номер счёта: {appointment.id}")
-    p.drawString(
-        3 * cm, height - 6 * cm, f"Дата: {appointment.date.strftime('%d.%m.%Y')}"
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'Title',
+        fontName='Arial',
+        fontSize=24,
+        textColor=colors.black,
+        spaceAfter=12,
+        alignment=1  # центр
     )
-    p.drawString(3 * cm, height - 7 * cm, f"Клиент: {appointment.client_name}")
-    p.drawString(3 * cm, height - 8 * cm, f"Телефон: {appointment.client_phone}")
+    normal_style = ParagraphStyle(
+        'Normal',
+        fontName='Arial',
+        fontSize=12,
+        textColor=colors.black,
+        leading=14,
+        spaceAfter=8
+    )
+    header_style = ParagraphStyle(
+        'Header',
+        fontName='Arial',
+        fontSize=14,
+        textColor=colors.darkgoldenrod,
+        spaceAfter=6,
+        alignment=1
+    )
+
+    # Заголовок
+    elements.append(Paragraph("СЧЁТ НА ОПЛАТУ", title_style))
+    elements.append(Spacer(1, 0.8*cm))
+
+    # Информация о счёте
+    info_data = [
+        [Paragraph(f"<b>Номер счёта:</b> {appointment.id}", normal_style),
+         Paragraph(f"<b>Дата:</b> {appointment.date.strftime('%d.%m.%Y')}", normal_style)],
+        [Paragraph(f"<b>Клиент:</b> {appointment.client_name}", normal_style),
+         Paragraph(f"<b>Телефон:</b> {appointment.client_phone}", normal_style)],
+    ]
     if appointment.client_email:
-        p.drawString(3 * cm, height - 9 * cm, f"Email: {appointment.client_email}")
+        info_data.append([Paragraph(f"<b>Email:</b> {appointment.client_email}", normal_style), ""])
 
-    p.drawString(3 * cm, height - 11 * cm, f"Мастер: {appointment.master.full_name}")
-    p.drawString(
-        3 * cm,
-        height - 12 * cm,
-        f"Дата и время услуги: {appointment.date.strftime('%d.%m.%Y')} {appointment.time.strftime('%H:%M')}",
-    )
+    info_table = Table(info_data, colWidths=[9*cm, 9*cm])
+    info_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('BACKGROUND', (0,0), (-1,-1), colors.whitesmoke),
+        ('FONTNAME', (0,0), (-1,-1), 'Arial'),
+    ]))
+    elements.append(info_table)
+    elements.append(Spacer(1, 1*cm))
 
-    p.drawString(3 * cm, height - 14 * cm, "Услуги:")
-    y = height - 15 * cm
-    for service in appointment.service.all():
-        p.drawString(4 * cm, y, f"• {service.name} — {service.price} ₸")
-        y -= 0.8 * cm
+    # Услуги — таблица
+    elements.append(Paragraph("Услуги:", header_style))
+    elements.append(Spacer(1, 0.4*cm))
 
-    p.setFont("Arial", 14)
-    p.drawString(3 * cm, y - 1 * cm, f"ИТОГО К ОПЛАТЕ: {appointment.total_price()} ₸")
+    service_data = [["№", "Услуга", "Цена (₸)"]]
+    for idx, service in enumerate(appointment.service.all(), 1):
+        service_data.append([
+            str(idx),
+            service.name,
+            f"{service.price}"
+        ])
 
-    p.setFont("Arial", 10)
-    p.drawString(3 * cm, 3 * cm, "Спасибо, что выбрали BladeMaster! 💈")
+    service_data.append(["", Paragraph("<b>ИТОГО К ОПЛАТЕ:</b>", normal_style), f"<b>{appointment.total_price()} ₸</b>"])
 
-    p.showPage()
-    p.save()
+    service_table = Table(service_data, colWidths=[1.5*cm, 12*cm, 4.5*cm])
+    service_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.darkgoldenrod),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (0,0), (-1,0), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Arial'),
+        ('FONTSIZE', (0,0), (-1,0), 12),
+        ('BOTTOMPADDING', (0,0), (-1,0), 12),
+        ('BACKGROUND', (0,1), (-1,-1), colors.whitesmoke),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('ALIGN', (0,0), (0,-1), 'CENTER'),
+        ('ALIGN', (2,0), (2,-1), 'RIGHT'),
+        ('FONTNAME', (0,1), (-1,-1), 'Arial'),
+        ('FONTSIZE', (0,1), (-1,-1), 11),
+        ('TEXTCOLOR', (-1,-1), (-1,-1), colors.darkgreen),
+    ]))
+    elements.append(service_table)
+    elements.append(Spacer(1, 1.5*cm))
 
+    # Нижний колонтитул
+    elements.append(Paragraph("Спасибо, что выбрали BladeMaster! 💈", normal_style))
+    elements.append(Spacer(1, 0.5*cm))
+    elements.append(Paragraph("Мы ждём вас снова!", normal_style))
+
+    doc.build(elements)
     return response
-
 
 def generate_act_pdf(request, appointment_id):
     appointment = get_object_or_404(Appointment, id=appointment_id)
@@ -453,51 +601,129 @@ def generate_act_pdf(request, appointment_id):
         messages.error(request, "Акт доступен только для выполненных услуг.")
         return redirect("book_success", appointment_id)
 
+    # Регистрируем шрифт ТОЛЬКО здесь (если файл существует)
+    font_path = os.path.join(settings.BASE_DIR, "core", "static", "fonts", "Arial.ttf")
+    if os.path.exists(font_path):
+        pdfmetrics.registerFont(TTFont('Arial', font_path))
+    else:
+        print("Шрифт Arial.ttf не найден — PDF будет без кастомного шрифта")
+
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="act_{appointment.id}.pdf"'
 
-    p = canvas.Canvas(response, pagesize=A4)
-    width, height = A4
-
-    p.setFont("Arial", 18)
-    p.drawCentredString(width / 2, height - 3 * cm, "АКТ ВЫПОЛНЕННЫХ РАБОТ")
-
-    p.setFont("Arial", 12)
-    p.drawString(3 * cm, height - 5 * cm, f"Номер акта: {appointment.id}")
-    p.drawString(
-        3 * cm,
-        height - 6 * cm,
-        f"Дата выполнения: {appointment.date.strftime('%d.%m.%Y')}",
+    doc = SimpleDocTemplate(
+        response,
+        pagesize=A4,
+        rightMargin=2*cm,
+        leftMargin=2*cm,
+        topMargin=2*cm,
+        bottomMargin=2*cm
     )
-    p.drawString(3 * cm, height - 7 * cm, f"Клиент: {appointment.client_name}")
-    p.drawString(3 * cm, height - 8 * cm, f"Мастер: {appointment.master.full_name}")
 
-    y = height - 10 * cm
-    p.drawString(3 * cm, y, "Выполненные услуги:")
-    y -= 1 * cm
-    for service in appointment.service.all():
-        p.drawString(4 * cm, y, f"• {service.name}")
-        y -= 0.8 * cm
+    elements = []
 
-    p.setFont("Arial", 14)
-    p.drawString(3 * cm, y - 1 * cm, f"Сумма: {appointment.total_price()} ₸")
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'Title',
+        fontName='Arial',
+        fontSize=24,
+        textColor=colors.black,
+        spaceAfter=12,
+        alignment=1  # центр
+    )
+    normal_style = ParagraphStyle(
+        'Normal',
+        fontName='Arial',
+        fontSize=12,
+        textColor=colors.black,
+        leading=14,
+        spaceAfter=8
+    )
+    header_style = ParagraphStyle(
+        'Header',
+        fontName='Arial',
+        fontSize=14,
+        textColor=colors.darkgoldenrod,
+        spaceAfter=6,
+        alignment=1
+    )
+    signature_style = ParagraphStyle(
+        'Signature',
+        fontName='Arial',
+        fontSize=12,
+        textColor=colors.black,
+        alignment=0,
+        spaceAfter=20
+    )
 
-    p.setFont("Arial", 10)
-    p.drawString(3 * cm, 4 * cm, "Услуги выполнены в полном объёме.")
-    p.drawString(3 * cm, 3 * cm, "Подпись мастера: _____________________")
-    p.drawString(3 * cm, 2 * cm, "Подпись клиента: _____________________")
+    # Заголовок
+    elements.append(Paragraph("АКТ ВЫПОЛНЕННЫХ РАБОТ", title_style))
+    elements.append(Spacer(1, 0.8*cm))
 
-    p.showPage()
-    p.save()
+    # Информация об акте
+    info_data = [
+        [Paragraph(f"<b>Номер акта:</b> {appointment.id}", normal_style),
+         Paragraph(f"<b>Дата выполнения:</b> {appointment.date.strftime('%d.%m.%Y')}", normal_style)],
+        [Paragraph(f"<b>Клиент:</b> {appointment.client_name}", normal_style),
+         Paragraph(f"<b>Мастер:</b> {appointment.master.full_name}", normal_style)],
+    ]
 
+    info_table = Table(info_data, colWidths=[9*cm, 9*cm])
+    info_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('BACKGROUND', (0,0), (-1,-1), colors.whitesmoke),
+        ('FONTNAME', (0,0), (-1,-1), 'Arial'),
+    ]))
+    elements.append(info_table)
+    elements.append(Spacer(1, 1*cm))
+
+    # Услуги — таблица
+    elements.append(Paragraph("Выполненные услуги:", header_style))
+    elements.append(Spacer(1, 0.4*cm))
+
+    service_data = [["№", "Услуга"]]
+    for idx, service in enumerate(appointment.service.all(), 1):
+        service_data.append([
+            str(idx),
+            service.name
+        ])
+
+    service_table = Table(service_data, colWidths=[1.5*cm, 15.5*cm])
+    service_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.darkgoldenrod),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (0,0), (-1,0), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Arial'),
+        ('FONTSIZE', (0,0), (-1,0), 12),
+        ('BOTTOMPADDING', (0,0), (-1,0), 12),
+        ('BACKGROUND', (0,1), (-1,-1), colors.whitesmoke),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('ALIGN', (0,0), (0,-1), 'CENTER'),
+        ('FONTNAME', (0,1), (-1,-1), 'Arial'),
+        ('FONTSIZE', (0,1), (-1,-1), 11),
+    ]))
+    elements.append(service_table)
+    elements.append(Spacer(1, 1*cm))
+
+    # Итоговая сумма
+    elements.append(Paragraph(f"<b>Сумма выполненных услуг:</b> {appointment.total_price()} ₸", normal_style))
+    elements.append(Spacer(1, 1.5*cm))
+
+    # Подписи
+    elements.append(Paragraph("Подпись мастера: _______________________________", signature_style))
+    elements.append(Paragraph("Подпись клиента: _______________________________", signature_style))
+
+    # Нижний колонтитул
+    elements.append(Spacer(1, 2*cm))
+    elements.append(Paragraph("Услуги выполнены в полном объёме и без претензий.", normal_style))
+    elements.append(Spacer(1, 0.5*cm))
+    elements.append(Paragraph("Спасибо, что выбрали BladeMaster! 💈", normal_style))
+
+    doc.build(elements)
     return response
-
-
-# Регистрация шрифта Arial с поддержкой русского
-pdfmetrics.registerFont(
-    TTFont("Arial", os.path.join(settings.BASE_DIR, "static", "fonts", "Arial.ttf"))
-)
-
 
 @login_required  # Опционально, но пока без авторизации — любой может
 def add_review(request, appointment_id):
@@ -527,35 +753,29 @@ def add_review(request, appointment_id):
         return redirect("book_success", appointment_id)
 
     return redirect("book_success", appointment_id)
-
-
 def cabinet_login(request):
     if request.method == "POST":
-        username = request.POST.get("username")  # Может быть телефон или логин мастера
+        username = request.POST.get("username")
         password = request.POST.get("password")
+        role = request.POST.get("role")
 
-        if username and password:
-            user = authenticate(request, username=username, password=password)
-            if user is not None:
-                login(request, user)
+        # Дебажный print — смотри в консоли, что приходит
+        print(f"Попытка входа: role={role}, username='{username}'")
 
-                # Определяем, кто зашёл
-                if hasattr(user, "master_profile"):
-                    messages.success(
-                        request,
-                        f"Добро пожаловать, мастер {user.master_profile.full_name}!",
-                    )
-                    return redirect("master_dashboard")
-                else:
-                    messages.success(request, "Добро пожаловать в личный кабинет!")
-                    return redirect("cabinet_dashboard")
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            if hasattr(user, "master_profile"):
+                messages.success(request, f"Добро пожаловать, мастер {user.master_profile.full_name}!")
+                return redirect("master_dashboard")
             else:
-                messages.error(request, "Неверный логин или пароль.")
+                messages.success(request, "Добро пожаловать в личный кабинет!")
+                return redirect("cabinet_dashboard")
         else:
-            messages.error(request, "Заполните все поля.")
+            messages.error(request, "Неверный логин или пароль.")
+            print("Authenticate failed")
 
     return render(request, "core/cabinet_login.html")
-
 
 def cabinet_dashboard(request):
     if not request.user.is_authenticated:
@@ -627,7 +847,7 @@ def cabinet_cancel_appointment(request, appointment_id):
 def cabinet_logout(request):
     logout(request)
     messages.info(request, "Вы вышли из личного кабинета.")
-    return redirect("home")
+    return redirect('cabinet_login')
 
 
 def is_master(user):
@@ -660,12 +880,12 @@ def master_login(request):
         else:
             messages.error(request, "Неверный логин или пароль, или вы не мастер.")
 
-    return render(request, "core/master_login.html")
+    return redirect('cabinet_login')
 
 
 def master_logout(request):
     auth_logout(request)
-    return redirect("master_login")
+    return redirect('cabinet_login')
 
 
 @user_passes_test(is_master, login_url="master_login")
@@ -685,7 +905,6 @@ def master_change_status(request, appointment_id, new_status):
 
     return redirect("master_dashboard") @ login_required
 
-
 @login_required
 def master_dashboard(request):
     if not hasattr(request.user, 'master_profile') or not request.user.master_profile:
@@ -695,17 +914,26 @@ def master_dashboard(request):
     master = request.user.master_profile
     
     filter_type = request.GET.get('filter', 'all')
+    show_completed = request.GET.get('show_completed') == '1'  # чекбокс включён?
+    
     today = timezone.now().date()
     tomorrow = today + timedelta(days=1)
     
-    if filter_type == 'today':
-        appointments = Appointment.objects.filter(master=master, date=today).order_by('time')
-    elif filter_type == 'tomorrow':
-        appointments = Appointment.objects.filter(master=master, date=tomorrow).order_by('time')
-    else:
-        appointments = Appointment.objects.filter(master=master).order_by('-date', 'time')
+    appointments = Appointment.objects.filter(master=master)
     
-    # Статистика для сегодня
+    # Фильтр по дате
+    if filter_type == 'today':
+        appointments = appointments.filter(date=today)
+    elif filter_type == 'tomorrow':
+        appointments = appointments.filter(date=tomorrow)
+    
+    # По умолчанию скрываем завершённые/отменённые/не пришедшие
+    if not show_completed:
+        appointments = appointments.exclude(status__in=['completed', 'no_show', 'cancelled'])
+    
+    appointments = appointments.order_by('-date', 'time')
+    
+    # Статистика для сегодня (для примера, можно убрать если не нужно)
     appointments_today = Appointment.objects.filter(master=master, date=today)
     total_today = sum(app.total_price() for app in appointments_today)
     appointments_new = appointments_today.filter(status='new')
@@ -718,6 +946,7 @@ def master_dashboard(request):
         'appointments_new': appointments_new,
         'today': today,
         'tomorrow': tomorrow,
+        'show_completed': show_completed,  # передаём в шаблон
     }
     
     return render(request, 'core/master_dashboard.html', context)
