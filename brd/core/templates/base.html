@@ -56,6 +56,9 @@
             backdrop-filter: blur(10px);
             transition: all 0.4s ease;
             padding: 1rem 0;
+            padding-top: 0.75rem !important;
+            padding-bottom: 0.75rem !important;
+            min-height: 70px;
         }
 
         .navbar.scrolled {
@@ -185,6 +188,38 @@
             border-color: #333;
             opacity: 0.5;
         }
+
+        .logo-img {
+            height: 70px;
+            /* большое лого на десктопе */
+            width: auto;
+            max-height: 80px;
+            object-fit: contain;
+            /* не растягивается, сохраняет пропорции */
+        }
+
+        /* На мобильных уменьшаем лого и скрываем текст */
+        @media (max-width: 991px) {
+            .navbar {
+                min-height: 60px;
+                /* меньше на мобильных */
+                padding-top: 0.5rem !important;
+                padding-bottom: 0.5rem !important;
+            }
+
+            .logo-img {
+                height: 50px;
+                /* поменьше на мобильных */
+                max-height: 55px;
+            }
+
+            .brand-text {
+                display: none !important;
+                /* текст скрыт на телефонах */
+            }
+        }
+
+        /* Если хочешь текст всё-таки оставить на мобильных — просто удали .brand-text { display: none; } */
     </style>
 </head>
 
@@ -193,12 +228,16 @@
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="/">
-                <img src="{% static 'core/images/logo.png' %}" alt="BladeMaster" height="45" class="me-2">
+                <!-- Лого большое, но не растягивает навбар -->
+                <img src="{% static 'images/logo.png' %}" alt="BladeMaster" class="logo-img me-2">
+                <span class="brand-text d-none d-lg-inline fs-3 fw-bold text-gold">BladeMaster</span>
             </a>
+
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                 aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
+
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item">

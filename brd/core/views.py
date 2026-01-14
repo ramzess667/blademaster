@@ -41,9 +41,12 @@ def multiply(value, arg):
 
 
 def home(request):
-    return render(request, "core/home.html")
-
-
+    masters = Master.objects.all()  # или .filter(...), или [:4] для первых 4
+    context = {
+        'masters': masters,  # ← имя переменной должно быть 'masters' (с маленькой буквы!)
+        # ... другие переменные ...
+    }
+    return render(request, 'core/home.html', context)
 # views.py
 def services(request):
     master_id = request.GET.get('master')

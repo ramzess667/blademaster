@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'accounts', 
     'crispy_forms', 
     'crispy_bootstrap5',
+    
 ]
 
 MIDDLEWARE = [
@@ -111,7 +112,17 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+# Static files (CSS, JavaScript, Images)
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = '/static/'
+
+STATICFILES_DIRS = [
+    BASE_DIR / 'brd' / 'core' / 'static',  # ← только этот путь, без лишних папок
+]
+
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -124,10 +135,6 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 # Папки для фото и статических файлов
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # После входа/выхода перенаправлять на главную
 LOGIN_REDIRECT_URL = '/'
