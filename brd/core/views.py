@@ -47,6 +47,7 @@ def home(request):
         # ... другие переменные ...
     }
     return render(request, 'core/home.html', context)
+
 # views.py
 def services(request):
     master_id = request.GET.get('master')

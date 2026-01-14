@@ -43,13 +43,6 @@ class Master(models.Model):
     def __str__(self):
         return self.full_name
     
-    def average_rating(self):
-        reviews = self.appointment_set.filter(review__isnull=False).values_list('review__rating', flat=True)
-        if reviews:
-            from statistics import mean
-            return mean(reviews)
-        return 0
-    
     @property
     def reviews(self):
         return Review.objects.filter(appointment__master=self)
