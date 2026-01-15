@@ -24,4 +24,9 @@ urlpatterns = [
     path('master/dashboard/', views.master_dashboard, name='master_dashboard'),
     path('master/change-status/<int:appointment_id>/<str:new_status>/', views.master_change_status, name='master_change_status'),
     path('master/logout/', views.master_logout, name='master_logout'),
+    path("offer/", views.offer_view, name="offer"),
+    path("offer/pdf/", views.offer_pdf, name="offer_pdf"),
+    path("reports/", views.admin_reports, name="admin_reports"),
+
+
 ]

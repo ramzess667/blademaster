@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.conf import settings
 from datetime import datetime, timedelta, time as dtime
 from django.http import JsonResponse
+from decimal import Decimal
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
@@ -19,14 +20,33 @@ from .forms import BookingAuthForm
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import user_passes_test
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Table,
+    TableStyle,
+    Paragraph,
+    Spacer,
+    Image,
+)
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from django import template
+from .models import WorkingHours
+from reportlab.lib.units import mm
+from django.contrib.admin.views.decorators import staff_member_required
+from django.utils import timezone
+from django.db.models import Count, Sum, F, IntegerField, ExpressionWrapper
+from datetime import datetime, timedelta
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+
 import os
 
 
-
 register = template.Library()
+
 
 @register.filter
 def multiply(value, arg):
@@ -37,33 +57,35 @@ def multiply(value, arg):
     try:
         return float(value) * float(arg)
     except (ValueError, TypeError):
-        return ''
+        return ""
 
 
 def home(request):
     masters = Master.objects.all()  # или .filter(...), или [:4] для первых 4
     context = {
-        'masters': masters,  # ← имя переменной должно быть 'masters' (с маленькой буквы!)
+        "masters": masters,  # ← имя переменной должно быть 'masters' (с маленькой буквы!)
         # ... другие переменные ...
     }
-    return render(request, 'core/home.html', context)
+    return render(request, "core/home.html", context)
+
 
 # views.py
 def services(request):
-    master_id = request.GET.get('master')
+    master_id = request.GET.get("master")
     selected_master = None
     if master_id:
         try:
             selected_master = Master.objects.get(id=master_id)
-            request.session['selected_master_id'] = master_id  # сохраняем
+            request.session["selected_master_id"] = master_id  # сохраняем
         except Master.DoesNotExist:
             pass
 
     context = {
-        'services': Service.objects.all(),
-        'selected_master': selected_master,
+        "services": Service.objects.all(),
+        "selected_master": selected_master,
     }
-    return render(request, 'core/services.html', context)
+    return render(request, "core/services.html", context)
+
 
 def masters(request):
     masters = Master.objects.all()
@@ -124,106 +146,141 @@ def book_step2_datetime(request, service_id, master_id):
             "booked_slots": booked_slots,  # Передаём в шаблон
         },
     )
+
 def book_confirm(request):
     if request.method != "POST":
         return redirect("home")
 
-    # Получаем данные из формы
-    service_id = request.POST.get("service_id")
+    # Данные из формы (multi)
     master_id = request.POST.get("master_id")
-    date = request.POST.get("date")
-    time = request.POST.get("time")
-    client_name = request.POST.get("client_name")
-    client_phone = request.POST.get("client_phone")
-    client_email = request.POST.get("client_email", "")
-    agree_offer = request.POST.get("agree_offer")  # чекбокс оферты
-    prepayment = request.POST.get("prepayment") == "on"  # чекбокс предоплаты
+    date_str = request.POST.get("date")
+    time_str = request.POST.get("time")
 
-    # Проверки
-    if not all([service_id, master_id, date, time, client_name, client_phone]):
-        messages.error(request, "Заполните все обязательные поля!")
-        return redirect("book_datetime_multi")
+    client_name = (request.POST.get("client_name") or "").strip()
+    client_phone = (request.POST.get("client_phone") or "").strip()
+    client_email = (request.POST.get("client_email") or "").strip()
+
+    service_ids = request.POST.getlist("service_ids")
+
+    agree_offer = request.POST.get("agree_offer")
+    prepayment_checked = request.POST.get("prepayment") == "on"
+
+    # Проверки обязательных
+    if not all([master_id, date_str, time_str, client_name, client_phone]) or not service_ids:
+        messages.error(request, "Заполните все обязательные поля и выберите услуги!")
+        return redirect("services")
 
     if not agree_offer:
         messages.error(request, "Необходимо согласиться с публичной офертой!")
-        return redirect("book_datetime_multi")
+        return redirect("services")
 
-    service = get_object_or_404(Service, id=service_id)
     master = get_object_or_404(Master, id=master_id)
+    services = Service.objects.filter(id__in=service_ids)
 
-    # Рассчитываем предоплату (30% от суммы всех услуг)
-    total_price = sum(service.price for service in Service.objects.filter(id__in=request.POST.getlist("service_ids")))
-    prepayment_amount = total_price * 0.3 if prepayment else 0
+    if not services.exists():
+        messages.error(request, "Не удалось получить выбранные услуги. Начните заново.")
+        return redirect("services")
+
+    # Защита от занятости (только new/confirmed блокируют слот)
+    if Appointment.objects.filter(
+        master=master,
+        date=date_str,
+        time=time_str,
+        status__in=["new", "confirmed"],
+    ).exists():
+        messages.error(request, "Это время уже занято! Выберите другое.")
+        return redirect("services")
+
+    # Суммы
+    total_price = sum(Decimal(str(s.price)) for s in services)
+    prepayment_amount = (total_price * Decimal("0.30")).quantize(Decimal("0.01")) if prepayment_checked else Decimal("0.00")
+
+    # ---- СПОСОБ ОПЛАТЫ (заглушка) ----
+    payment_method = request.POST.get("payment_method", "cash")
+
+    payment_map = {
+        "cash": "Наличными",
+        "card": "Картой",
+        "kaspi_qr": "Kaspi QR",
+    }
+
+    method_text = "Kaspi Pay (имитация)" if prepayment_checked else payment_map.get(payment_method, "Наличными")
 
     # Создаём запись
     appointment = Appointment.objects.create(
         client_name=client_name,
         client_phone=client_phone,
-        client_email=client_email,
+        client_email=client_email or None,
         master=master,
-        date=date,
-        time=time,
+        date=date_str,
+        time=time_str,
         status="new",
         prepayment_amount=prepayment_amount,
-        prepayment_paid=prepayment,  # пока просто True/False
-        prepayment_method="Kaspi Pay (имитация)" if prepayment else "",
+        prepayment_paid=prepayment_checked,  # имитация: если чекбокс — значит "оплачено"
+        prepayment_method=method_text,
     )
-    appointment.service.add(service)
+    appointment.service.set(services)
     appointment.save()
 
-    # Безопасно очищаем сессию (если ключ есть)
-    if 'selected_master_id' in request.session:
-        del request.session['selected_master_id']
+    # очищаем выбранного мастера в сессии (если был)
+    if "selected_master_id" in request.session:
+        del request.session["selected_master_id"]
 
-    # Отправка email клиенту
-    try:
-        send_mail(
-            "Ваша запись в BladeMaster подтверждена!",
-            f"Здравствуйте, {client_name}!\n\n"
-            f"Вы записаны на {service.name} к мастеру {master.full_name}\n"
-            f"Дата: {date} {time}\n"
-            f"Сумма: {total_price} ₸\n"
-            f"Предоплата: {'Да, ' + str(prepayment_amount) + ' ₸' if prepayment else 'Нет'}\n\n"
-            f"Ссылка для отмены: http://127.0.0.1:8000/appointment/{appointment.id}/cancel/\n\n"
-            f"Спасибо, что выбрали нас!",
-            "admin@blademaster.kz",
-            [client_email] if client_email else [],
-            fail_silently=False,
-        )
-    except Exception as e:
-        print(f"Ошибка отправки email клиенту: {e}")
+    # Email клиенту
+    if client_email:
+        try:
+            send_mail(
+                "Ваша запись в BladeMaster подтверждена!",
+                (
+                    f"Здравствуйте, {client_name}!\n\n"
+                    f"Мастер: {master.full_name}\n"
+                    f"Дата и время: {date_str} {time_str}\n"
+                    f"Услуги: {', '.join([s.name for s in services])}\n"
+                    f"Сумма: {total_price} ₸\n"
+                    f"Предоплата: {prepayment_amount} ₸\n"
+                    f"Способ оплаты: {method_text}\n\n"
+                    f"Спасибо, что выбрали нас!"
+                ),
+                "admin@blademaster.kz",
+                [client_email],
+                fail_silently=True,
+            )
+        except Exception as e:
+            print(f"Ошибка отправки email клиенту: {e}")
 
-    # Уведомление мастеру (email)
-    if master.email:
+    # Email мастеру — у тебя уже есть правильная логика через master.user.email в другом куске
+    master_email = ""
+    if getattr(master, "user", None) and master.user.email:
+        master_email = master.user.email.strip()
+
+    if master_email:
         try:
             send_mail(
                 "Новая запись в BladeMaster",
-                f"Клиент {client_name} ({client_phone}) записался на {date} {time}\n"
-                f"Услуги: {service.name}\n"
-                f"Сумма: {total_price} ₸\n"
-                f"Предоплата: {'Да' if prepayment else 'Нет'}",
+                (
+                    f"Клиент: {client_name}\n"
+                    f"Телефон: {client_phone}\n"
+                    f"Дата и время: {date_str} {time_str}\n"
+                    f"Услуги: {', '.join([s.name for s in services])}\n"
+                    f"Сумма: {total_price} ₸\n"
+                    f"Предоплата: {'Да' if prepayment_checked else 'Нет'}\n"
+                    f"Способ оплаты: {method_text}"
+                ),
                 "admin@blademaster.kz",
-                [master.email],
+                [master_email],
                 fail_silently=True,
             )
         except Exception as e:
             print(f"Ошибка отправки email мастеру: {e}")
 
-    # Уведомление в консоль
-    print(f"НОВАЯ ЗАПИСЬ! ID: {appointment.id}")
-    print(f"Клиент: {client_name}, {client_phone}, {client_email}")
-    print(f"Услуга: {service.name}")
-    print(f"Мастер: {master.full_name}")
-    print(f"Дата и время: {date} {time}")
-    print(f"Предоплата: {'Да, ' + str(prepayment_amount) + ' ₸' if prepayment else 'Нет'}")
-
     # Сообщение пользователю
-    if prepayment:
+    if prepayment_checked:
         messages.success(request, f"Предоплата {prepayment_amount} ₸ успешно внесена (имитация). Запись подтверждена!")
     else:
         messages.success(request, "Ваша запись успешно создана! Мы ждём вас в BladeMaster 💈")
 
     return redirect("book_success", appointment.id)
+
 
 # Отмена записи по ID (с проверкой за 2 часа)
 def cancel_appointment(request, appointment_id):
@@ -250,17 +307,32 @@ def cancel_appointment(request, appointment_id):
     return redirect("home")
 
 
-# Страница успеха с кнопкой отмены
 def book_success(request, appointment_id):
     appointment = get_object_or_404(Appointment, id=appointment_id)
-    return render(request, "core/book_success.html", {"appointment": appointment})
 
+    total_price = appointment.total_price()
+    prepay = appointment.prepayment_amount or Decimal("0.00")
+    remaining = (Decimal(str(total_price)) - Decimal(str(prepay)))
+
+    if remaining < 0:
+        remaining = Decimal("0.00")
+
+    return render(
+        request,
+        "core/book_success.html",
+        {
+            "appointment": appointment,
+            "remaining_amount": remaining,
+        }
+    )
 
 def book_select_master(request):
-    master_id = request.POST.get('master_id') or request.session.get('selected_master_id')
+    master_id = request.POST.get("master_id") or request.session.get(
+        "selected_master_id"
+    )
     if master_id:
-        return redirect(reverse('book_datetime_multi') + '?master=' + str(master_id))
-    
+        return redirect(reverse("book_datetime_multi") + "?master=" + str(master_id))
+
     if request.method == "POST":
         service_ids = request.POST.getlist("services")
 
@@ -288,145 +360,84 @@ def book_select_master(request):
 
 
 def book_datetime_multi(request):
-    if request.method == "POST":
-        master_id = request.GET.get('master') or request.session.get('selected_master_id')
-        if master_id:
-            master = get_object_or_404(Master, id=master_id)
-    # используй master в контексте/логике ниже
-        # Первый POST: выбор мастера
-        if "master" in request.POST:
-            service_ids = request.POST.getlist("services")
-            master_id = request.POST["master"]
+    """
+    Шаг 2: показать страницу выбора даты/времени после выбора мастера и услуг.
+    Здесь НЕ создаём Appointment — это делает book_confirm.
+    """
 
-            if not service_ids or not master_id:
-                messages.error(request, "Ошибка выбора. Начните заново.")
-                return redirect("services")
+    if request.method != "POST":
+        return redirect("services")
 
-            services = Service.objects.filter(id__in=service_ids)
-            master = get_object_or_404(Master, id=master_id)
-            total_price = sum(s.price for s in services)
-            total_duration = sum(s.duration for s in services)
+    # Первый POST: выбор мастера + услуг (приходит из step1)
+    if "master" not in request.POST:
+        messages.error(request, "Ошибка: мастер не выбран. Начните заново.")
+        return redirect("services")
 
-            # Генерация слотов (твой код — оставляем)
-            start_str = "10:00"
-            end_str = "22:00"
-            start_time = datetime.strptime(start_str, "%H:%M")
-            end_time = datetime.strptime(end_str, "%H:%M")
-            slot_step = 30
+    service_ids = request.POST.getlist("services")
+    master_id = request.POST.get("master")
 
-            all_slots = []
-            current = start_time
-            while current <= end_time:
-                all_slots.append(current.strftime("%H:%M"))
-                current = current + timedelta(minutes=slot_step)
+    if not service_ids or not master_id:
+        messages.error(request, "Ошибка выбора. Начните заново.")
+        return redirect("services")
 
-            # Занятые слоты
-            appointments = Appointment.objects.filter(
-                master=master, status__in=["new", "confirmed"]
-            )
+    services = Service.objects.filter(id__in=service_ids)
+    if not services.exists():
+        messages.error(request, "Услуги не найдены. Начните заново.")
+        return redirect("services")
 
-            occupied_slots = set()
-            for app in appointments:
-                app_start = datetime.strptime(app.time.strftime("%H:%M"), "%H:%M")
-                app_duration = sum(s.duration for s in app.service.all())
-                app_end = app_start + timedelta(minutes=app_duration)
+    master = get_object_or_404(Master, id=master_id)
 
-                slot_time = app_start
-                while slot_time < app_end:
-                    time_str = slot_time.strftime("%H:%M")
-                    if time_str in all_slots:
-                        occupied_slots.add(time_str)
-                    slot_time += timedelta(minutes=slot_step)
+    total_price = sum(s.price for s in services)
+    total_duration = sum(s.duration for s in services)
 
-            free_slots = [slot for slot in all_slots if slot not in occupied_slots]
+    # Генерация слотов (как у тебя)
+    start_str = "10:00"
+    end_str = "22:00"
+    start_time = datetime.strptime(start_str, "%H:%M")
+    end_time = datetime.strptime(end_str, "%H:%M")
+    slot_step = 30
 
-            today = timezone.now().date()
-            dates = [today + timedelta(days=i) for i in range(30)]
+    all_slots = []
+    current = start_time
+    while current <= end_time:
+        all_slots.append(current.strftime("%H:%M"))
+        current = current + timedelta(minutes=slot_step)
 
-            return render(
-                request,
-                "core/book_datetime_multi.html",
-                {
-                    "services": services,
-                    "master": master,
-                    "total_price": total_price,
-                    "total_duration": total_duration,
-                    "dates": dates,
-                    "free_slots": free_slots,
-                },
-            )
-        
-        # Второй POST: подтверждение + авторизация
-        elif "date" in request.POST:
-            date_str = request.POST["date"]
-            time_str = request.POST["time"]
-            client_name = request.POST["client_name"]
-            phone = request.POST["phone"]
-            client_email = request.POST.get("client_email", "")
+    # Занятые слоты (new/confirmed занимают)
+    appointments = Appointment.objects.filter(
+        master=master, status__in=["new", "confirmed"]
+    ).prefetch_related("service")
 
-            service_ids = request.POST.getlist("service_ids")
-            master_id = request.POST["master_id"]
+    occupied_slots = set()
+    for app in appointments:
+        app_start = datetime.strptime(app.time.strftime("%H:%M"), "%H:%M")
+        app_duration = sum(s.duration for s in app.service.all())
+        app_end = app_start + timedelta(minutes=app_duration)
 
-            services = Service.objects.filter(id__in=service_ids)
-            master = get_object_or_404(Master, id=master_id)
+        slot_time = app_start
+        while slot_time < app_end:
+            time_str = slot_time.strftime("%H:%M")
+            if time_str in all_slots:
+                occupied_slots.add(time_str)
+            slot_time += timedelta(minutes=slot_step)
 
-            # Проверка на занятость
-            if Appointment.objects.filter(
-                master=master,
-                date=date_str,
-                time=time_str,
-                status__in=["new", "confirmed"],
-            ).exists():
-                messages.error(request, "Это время уже занято!")
-                return redirect("services")
+    free_slots = [slot for slot in all_slots if slot not in occupied_slots]
 
-            # Если залогинен — используем данные из профиля
-            if request.user.is_authenticated:
-                try:
-                    client = request.user.client
-                    phone = client.phone
-                    client_name = request.user.first_name or client_name
-                    client_email = request.user.email or client_email
-                except Client.DoesNotExist:
-                    messages.error(request, "Ошибка профиля. Выйдите и войдите заново.")
-                    return redirect("services")
-            else:
-                # Для нового клиента — пароль из формы
-                password = request.POST["password"]
-                password2 = request.POST["password2"]
-                if password != password2:
-                    messages.error(request, "Пароли не совпадают.")
-                    return redirect("services")
+    today = timezone.localdate()
+    dates = [today + timedelta(days=i) for i in range(30)]
 
-                # Создаём нового
-                # Создаём нового
-                user = User.objects.create_user(
-                    username=phone,
-                    password=password,
-                    first_name=client_name,
-                    email=client_email,
-                )
-                Client.objects.create(user=user, phone=phone)
-                user = authenticate(request, username=phone, password=password)
-                login(request, user)
-
-            # Создаём запись
-            appointment = Appointment.objects.create(
-                client_name=client_name,
-                client_phone=phone,
-                client_email=client_email,
-                master=master,
-                date=date_str,
-                time=time_str,
-                status="new",
-            )
-            appointment.service.set(services)
-            appointment.save()
-
-            messages.success(request, "Запись успешно создана!")
-            return redirect("book_success", appointment.id)
-
-    return redirect("services")
+    return render(
+        request,
+        "core/book_datetime_multi.html",
+        {
+            "services": services,
+            "master": master,
+            "total_price": total_price,
+            "total_duration": total_duration,
+            "dates": dates,
+            "free_slots": free_slots,
+        },
+    )
 
 
 def get_free_slots(request, master_id, date_str):
@@ -443,8 +454,21 @@ def get_free_slots(request, master_id, date_str):
 
     # Все возможные слоты (строки "10:00")
     all_slots = []
-    start_time = datetime.strptime("10:00", "%H:%M")
-    end_time = datetime.strptime("22:00", "%H:%M")
+    # Берём рабочие часы из админки
+    working_hours = WorkingHours.objects.first()
+
+    if working_hours:
+        start_time = datetime.combine(selected_date, working_hours.start_time)
+        end_time = datetime.combine(selected_date, working_hours.end_time)
+    else:
+        # fallback, если админ не задал часы
+        start_time = datetime.combine(
+            selected_date, datetime.strptime("10:00", "%H:%M").time()
+        )
+        end_time = datetime.combine(
+            selected_date, datetime.strptime("22:00", "%H:%M").time()
+        )
+
     current = start_time
     while current <= end_time:
         all_slots.append(current.strftime("%H:%M"))
@@ -487,141 +511,175 @@ def generate_invoice_pdf(request, appointment_id):
     # Регистрируем шрифт Arial (твой путь)
     font_path = os.path.join(settings.BASE_DIR, "core", "static", "fonts", "Arial.ttf")
     if os.path.exists(font_path):
-        pdfmetrics.registerFont(TTFont('Arial', font_path))
-        pdfmetrics.registerFont(TTFont('Arial-Bold', font_path))  # Для жирного, если нужно
+        pdfmetrics.registerFont(TTFont("Arial", font_path))
+        pdfmetrics.registerFont(
+            TTFont("Arial-Bold", font_path)
+        )  # Для жирного, если нужно
     else:
         print("Шрифт Arial.ttf не найден — PDF будет без кастомного шрифта")
 
     response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="schet_{appointment.id}.pdf"'
+    response["Content-Disposition"] = (
+        f'attachment; filename="schet_{appointment.id}.pdf"'
+    )
 
     doc = SimpleDocTemplate(
         response,
         pagesize=A4,
-        rightMargin=2.5*cm,
-        leftMargin=2.5*cm,
-        topMargin=3*cm,
-        bottomMargin=2.5*cm
+        rightMargin=2.5 * cm,
+        leftMargin=2.5 * cm,
+        topMargin=3 * cm,
+        bottomMargin=2.5 * cm,
     )
 
     elements = []
 
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
-        'Title',
-        fontName='Arial',
+        "Title",
+        fontName="Arial",
         fontSize=22,
         textColor=colors.black,
         spaceAfter=18,
         alignment=1,
-        leading=26
+        leading=26,
     )
     header_style = ParagraphStyle(
-        'Header',
-        fontName='Arial',
+        "Header",
+        fontName="Arial",
         fontSize=14,
         textColor=colors.darkgoldenrod,
         spaceAfter=8,
-        alignment=1
+        alignment=1,
     )
     normal_style = ParagraphStyle(
-        'Normal',
-        fontName='Arial',
+        "Normal",
+        fontName="Arial",
         fontSize=11,
         textColor=colors.black,
         leading=13,
-        spaceAfter=6
+        spaceAfter=6,
     )
-    fontName = 'Arial-Bold' if 'Arial-Bold' in pdfmetrics.getRegisteredFontNames() else 'Arial'
+    fontName = (
+        "Arial-Bold" if "Arial-Bold" in pdfmetrics.getRegisteredFontNames() else "Arial"
+    )
     bold_style = ParagraphStyle(
-        'Bold',
+        "Bold",
         fontName=fontName,  # ← только один раз!
         fontSize=11,
         textColor=colors.black,
         leading=13,
-        spaceAfter=6
-        )
+        spaceAfter=6,
+    )
 
     # Логотип (добавь свой файл в core/static/images/logo.png)
     logo_path = os.path.join(settings.BASE_DIR, "core", "static", "images", "logo.png")
     if os.path.exists(logo_path):
-        logo = Image(logo_path, width=8*cm, height=3*cm)
-        logo.hAlign = 'CENTER'
+        logo = Image(logo_path, width=8 * cm, height=3 * cm)
+        logo.hAlign = "CENTER"
         elements.append(logo)
-        elements.append(Spacer(1, 0.8*cm))
+        elements.append(Spacer(1, 0.8 * cm))
 
     # Заголовок
     elements.append(Paragraph("СЧЁТ НА ОПЛАТУ № " + str(appointment.id), title_style))
-    elements.append(Spacer(1, 0.6*cm))
+    elements.append(Spacer(1, 0.6 * cm))
 
     # Информация
     info_data = [
-        [Paragraph("<b>Дата выставления:</b>", bold_style), Paragraph(appointment.date.strftime('%d.%m.%Y'), normal_style)],
-        [Paragraph("<b>Клиент:</b>", bold_style), Paragraph(appointment.client_name, normal_style)],
-        [Paragraph("<b>Телефон:</b>", bold_style), Paragraph(appointment.client_phone, normal_style)],
+        [
+            Paragraph("<b>Дата выставления:</b>", bold_style),
+            Paragraph(appointment.date.strftime("%d.%m.%Y"), normal_style),
+        ],
+        [
+            Paragraph("<b>Клиент:</b>", bold_style),
+            Paragraph(appointment.client_name, normal_style),
+        ],
+        [
+            Paragraph("<b>Телефон:</b>", bold_style),
+            Paragraph(appointment.client_phone, normal_style),
+        ],
     ]
     if appointment.client_email:
-        info_data.append([Paragraph("<b>Email:</b>", bold_style), Paragraph(appointment.client_email, normal_style)])
+        info_data.append(
+            [
+                Paragraph("<b>Email:</b>", bold_style),
+                Paragraph(appointment.client_email, normal_style),
+            ]
+        )
 
-    info_table = Table(info_data, colWidths=[6*cm, 11*cm])
-    info_table.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('ALIGN', (0,0), (0,-1), 'LEFT'),
-        ('ALIGN', (1,0), (1,-1), 'RIGHT'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
-        ('BACKGROUND', (0,0), (0,-1), colors.whitesmoke),
-        ('FONTNAME', (0,0), (-1,-1), 'Arial'),
-        ('FONTSIZE', (0,0), (-1,-1), 11),
-        ('LEFTPADDING', (0,0), (0,-1), 12),
-        ('RIGHTPADDING', (1,0), (1,-1), 12),
-    ]))
+    info_table = Table(info_data, colWidths=[6 * cm, 11 * cm])
+    info_table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (0, 0), (0, -1), "LEFT"),
+                ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.lightgrey),
+                ("BACKGROUND", (0, 0), (0, -1), colors.whitesmoke),
+                ("FONTNAME", (0, 0), (-1, -1), "Arial"),
+                ("FONTSIZE", (0, 0), (-1, -1), 11),
+                ("LEFTPADDING", (0, 0), (0, -1), 12),
+                ("RIGHTPADDING", (1, 0), (1, -1), 12),
+            ]
+        )
+    )
     elements.append(info_table)
-    elements.append(Spacer(1, 1.2*cm))
+    elements.append(Spacer(1, 1.2 * cm))
 
     # Услуги
     elements.append(Paragraph("Услуги:", header_style))
-    elements.append(Spacer(1, 0.4*cm))
+    elements.append(Spacer(1, 0.4 * cm))
 
     service_data = [["№", "Наименование услуги", "Стоимость (₸)"]]
     total = 0
     for idx, service in enumerate(appointment.service.all(), 1):
-        service_data.append([
-            str(idx),
-            service.name,
-            f"{service.price:,.0f}"
-        ])
+        service_data.append([str(idx), service.name, f"{service.price:,.0f}"])
         total += service.price
 
-    service_data.append(["", Paragraph("<b>ИТОГО К ОПЛАТЕ:</b>", bold_style), f"<b>{total:,.0f} ₸</b>"])
+    service_data.append(
+        ["", Paragraph("<b>ИТОГО К ОПЛАТЕ:</b>", bold_style), f"<b>{total:,.0f} ₸</b>"]
+    )
 
-    service_table = Table(service_data, colWidths=[1.5*cm, 11.5*cm, 5*cm])
-    service_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.darkgoldenrod),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('ALIGN', (0,0), (-1,0), 'CENTER'),
-        ('FONTNAME', (0,0), (-1,0), 'Arial'),
-        ('FONTSIZE', (0,0), (-1,0), 12),
-        ('BOTTOMPADDING', (0,0), (-1,0), 12),
-        ('BACKGROUND', (0,1), (-1,-2), colors.whitesmoke),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('ALIGN', (0,1), (0,-1), 'CENTER'),
-        ('ALIGN', (2,1), (2,-1), 'RIGHT'),
-        ('FONTNAME', (0,1), (-1,-1), 'Arial'),
-        ('FONTSIZE', (0,1), (-1,-1), 11),
-        ('TEXTCOLOR', (2,-1), (2,-1), colors.darkgreen),
-        ('LINEBELOW', (0,-1), (-1,-1), 1.5, colors.darkgoldenrod),
-    ]))
+    service_table = Table(service_data, colWidths=[1.5 * cm, 11.5 * cm, 5 * cm])
+    service_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.darkgoldenrod),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+                ("FONTNAME", (0, 0), (-1, 0), "Arial"),
+                ("FONTSIZE", (0, 0), (-1, 0), 12),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+                ("BACKGROUND", (0, 1), (-1, -2), colors.whitesmoke),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.lightgrey),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (0, 1), (0, -1), "CENTER"),
+                ("ALIGN", (2, 1), (2, -1), "RIGHT"),
+                ("FONTNAME", (0, 1), (-1, -1), "Arial"),
+                ("FONTSIZE", (0, 1), (-1, -1), 11),
+                ("TEXTCOLOR", (2, -1), (2, -1), colors.darkgreen),
+                ("LINEBELOW", (0, -1), (-1, -1), 1.5, colors.darkgoldenrod),
+            ]
+        )
+    )
     elements.append(service_table)
-    elements.append(Spacer(1, 1.8*cm))
+    elements.append(Spacer(1, 1.8 * cm))
 
     # Благодарность и подпись
-    elements.append(Paragraph("Спасибо за выбор BladeMaster! Мы ценим ваше доверие и ждём вас снова. 💈", normal_style))
-    elements.append(Spacer(1, 1*cm))
-    elements.append(Paragraph("Подпись исполнителя: _______________________________", normal_style))
+    elements.append(
+        Paragraph(
+            "Спасибо за выбор BladeMaster! Мы ценим ваше доверие и ждём вас снова. 💈",
+            normal_style,
+        )
+    )
+    elements.append(Spacer(1, 1 * cm))
+    elements.append(
+        Paragraph("Подпись исполнителя: _______________________________", normal_style)
+    )
 
     doc.build(elements)
     return response
+
 
 def generate_act_pdf(request, appointment_id):
     appointment = get_object_or_404(Appointment, id=appointment_id)
@@ -631,8 +689,8 @@ def generate_act_pdf(request, appointment_id):
         return redirect("book_success", appointment_id)
 
     # Регистрируем шрифт ТОЛЬКО здесь
-    font_path = os.path.join(settings.BASE_DIR, "core", "static", "fonts", "arial.ttf")
-    pdfmetrics.registerFont(TTFont('Arial', font_path))
+    font_path = os.path.join(settings.BASE_DIR, "core", "static", "fonts", "Arial.ttf")
+    pdfmetrics.registerFont(TTFont("Arial", font_path))
 
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="act_{appointment.id}.pdf"'
@@ -640,116 +698,140 @@ def generate_act_pdf(request, appointment_id):
     doc = SimpleDocTemplate(
         response,
         pagesize=A4,
-        rightMargin=2*cm,
-        leftMargin=2*cm,
-        topMargin=2*cm,
-        bottomMargin=2*cm
+        rightMargin=2 * cm,
+        leftMargin=2 * cm,
+        topMargin=2 * cm,
+        bottomMargin=2 * cm,
     )
 
     elements = []
 
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
-        'Title',
-        fontName='Arial',
+        "Title",
+        fontName="Arial",
         fontSize=24,
         textColor=colors.black,
         spaceAfter=12,
-        alignment=1
+        alignment=1,
     )
     normal_style = ParagraphStyle(
-        'Normal',
-        fontName='Arial',
+        "Normal",
+        fontName="Arial",
         fontSize=12,
         textColor=colors.black,
         leading=14,
-        spaceAfter=8
+        spaceAfter=8,
     )
     header_style = ParagraphStyle(
-        'Header',
-        fontName='Arial',
+        "Header",
+        fontName="Arial",
         fontSize=14,
         textColor=colors.darkgoldenrod,
         spaceAfter=6,
-        alignment=1
+        alignment=1,
     )
     signature_style = ParagraphStyle(
-        'Signature',
-        fontName='Arial',
+        "Signature",
+        fontName="Arial",
         fontSize=12,
         textColor=colors.black,
         alignment=0,
-        spaceAfter=20
+        spaceAfter=20,
     )
 
     # Заголовок
     elements.append(Paragraph("АКТ ВЫПОЛНЕННЫХ РАБОТ", title_style))
-    elements.append(Spacer(1, 0.8*cm))
+    elements.append(Spacer(1, 0.8 * cm))
 
     # Информация
     info_data = [
-        [Paragraph(f"<b>Номер акта:</b> {appointment.id}", normal_style),
-         Paragraph(f"<b>Дата выполнения:</b> {appointment.date.strftime('%d.%m.%Y')}", normal_style)],
-        [Paragraph(f"<b>Клиент:</b> {appointment.client_name}", normal_style),
-         Paragraph(f"<b>Мастер:</b> {appointment.master.full_name}", normal_style)],
+        [
+            Paragraph(f"<b>Номер акта:</b> {appointment.id}", normal_style),
+            Paragraph(
+                f"<b>Дата выполнения:</b> {appointment.date.strftime('%d.%m.%Y')}",
+                normal_style,
+            ),
+        ],
+        [
+            Paragraph(f"<b>Клиент:</b> {appointment.client_name}", normal_style),
+            Paragraph(f"<b>Мастер:</b> {appointment.master.full_name}", normal_style),
+        ],
     ]
 
-    info_table = Table(info_data, colWidths=[9*cm, 9*cm])
-    info_table.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-        ('BACKGROUND', (0,0), (-1,-1), colors.whitesmoke),
-        ('FONTNAME', (0,0), (-1,-1), 'Arial'),
-    ]))
+    info_table = Table(info_data, colWidths=[9 * cm, 9 * cm])
+    info_table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
+                ("FONTNAME", (0, 0), (-1, -1), "Arial"),
+            ]
+        )
+    )
     elements.append(info_table)
-    elements.append(Spacer(1, 1*cm))
+    elements.append(Spacer(1, 1 * cm))
 
     # Услуги
     elements.append(Paragraph("Выполненные услуги:", header_style))
-    elements.append(Spacer(1, 0.4*cm))
+    elements.append(Spacer(1, 0.4 * cm))
 
     service_data = [["№", "Услуга"]]
     for idx, service in enumerate(appointment.service.all(), 1):
-        service_data.append([
-            str(idx),
-            service.name
-        ])
+        service_data.append([str(idx), service.name])
 
-    service_table = Table(service_data, colWidths=[1.5*cm, 15.5*cm])
-    service_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.darkgoldenrod),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('ALIGN', (0,0), (-1,0), 'CENTER'),
-        ('FONTNAME', (0,0), (-1,0), 'Arial'),
-        ('FONTSIZE', (0,0), (-1,0), 12),
-        ('BOTTOMPADDING', (0,0), (-1,0), 12),
-        ('BACKGROUND', (0,1), (-1,-1), colors.whitesmoke),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('ALIGN', (0,0), (0,-1), 'CENTER'),
-        ('FONTNAME', (0,1), (-1,-1), 'Arial'),
-        ('FONTSIZE', (0,1), (-1,-1), 11),
-    ]))
+    service_table = Table(service_data, colWidths=[1.5 * cm, 15.5 * cm])
+    service_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.darkgoldenrod),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+                ("FONTNAME", (0, 0), (-1, 0), "Arial"),
+                ("FONTSIZE", (0, 0), (-1, 0), 12),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+                ("BACKGROUND", (0, 1), (-1, -1), colors.whitesmoke),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (0, 0), (0, -1), "CENTER"),
+                ("FONTNAME", (0, 1), (-1, -1), "Arial"),
+                ("FONTSIZE", (0, 1), (-1, -1), 11),
+            ]
+        )
+    )
     elements.append(service_table)
-    elements.append(Spacer(1, 1*cm))
+    elements.append(Spacer(1, 1 * cm))
 
     # Сумма
-    elements.append(Paragraph(f"<b>Сумма выполненных услуг:</b> {appointment.total_price()} ₸", normal_style))
-    elements.append(Spacer(1, 1.5*cm))
+    elements.append(
+        Paragraph(
+            f"<b>Сумма выполненных услуг:</b> {appointment.total_price()} ₸",
+            normal_style,
+        )
+    )
+    elements.append(Spacer(1, 1.5 * cm))
 
     # Подписи
-    elements.append(Paragraph("Подпись мастера: _______________________________", signature_style))
-    elements.append(Paragraph("Подпись клиента: _______________________________", signature_style))
+    elements.append(
+        Paragraph("Подпись мастера: _______________________________", signature_style)
+    )
+    elements.append(
+        Paragraph("Подпись клиента: _______________________________", signature_style)
+    )
 
     # Нижний колонтитул
-    elements.append(Spacer(1, 2*cm))
-    elements.append(Paragraph("Услуги выполнены в полном объёме и без претензий.", normal_style))
-    elements.append(Spacer(1, 0.5*cm))
+    elements.append(Spacer(1, 2 * cm))
+    elements.append(
+        Paragraph("Услуги выполнены в полном объёме и без претензий.", normal_style)
+    )
+    elements.append(Spacer(1, 0.5 * cm))
     elements.append(Paragraph("Спасибо, что выбрали BladeMaster! 💈", normal_style))
 
     doc.build(elements)
     return response
+
 
 @login_required  # Опционально, но пока без авторизации — любой может
 def add_review(request, appointment_id):
@@ -779,6 +861,8 @@ def add_review(request, appointment_id):
         return redirect("book_success", appointment_id)
 
     return redirect("book_success", appointment_id)
+
+
 def cabinet_login(request):
     if request.method == "POST":
         username = request.POST.get("username")
@@ -792,7 +876,10 @@ def cabinet_login(request):
         if user is not None:
             login(request, user)
             if hasattr(user, "master_profile"):
-                messages.success(request, f"Добро пожаловать, мастер {user.master_profile.full_name}!")
+                messages.success(
+                    request,
+                    f"Добро пожаловать, мастер {user.master_profile.full_name}!",
+                )
                 return redirect("master_dashboard")
             else:
                 messages.success(request, "Добро пожаловать в личный кабинет!")
@@ -802,6 +889,7 @@ def cabinet_login(request):
             print("Authenticate failed")
 
     return render(request, "core/cabinet_login.html")
+
 
 def cabinet_dashboard(request):
     if not request.user.is_authenticated:
@@ -873,7 +961,7 @@ def cabinet_cancel_appointment(request, appointment_id):
 def cabinet_logout(request):
     logout(request)
     messages.info(request, "Вы вышли из личного кабинета.")
-    return redirect('cabinet_login')
+    return redirect("cabinet_login")
 
 
 def is_master(user):
@@ -906,12 +994,12 @@ def master_login(request):
         else:
             messages.error(request, "Неверный логин или пароль, или вы не мастер.")
 
-    return redirect('cabinet_login')
+    return redirect("cabinet_login")
 
 
 def master_logout(request):
     auth_logout(request)
-    return redirect('cabinet_login')
+    return redirect("cabinet_login")
 
 
 @user_passes_test(is_master, login_url="master_login")
@@ -929,53 +1017,56 @@ def master_change_status(request, appointment_id, new_status):
     else:
         messages.error(request, "Недопустимый статус.")
 
-    return redirect("master_dashboard") @ login_required
+    return redirect("master_dashboard")
+
 
 @login_required
 def master_dashboard(request):
-    if not hasattr(request.user, 'master_profile') or not request.user.master_profile:
-        messages.error(request, 'Доступ запрещён.')
-        return redirect('cabinet_logout')
-    
+    if not hasattr(request.user, "master_profile") or not request.user.master_profile:
+        messages.error(request, "Доступ запрещён.")
+        return redirect("cabinet_logout")
+
     master = request.user.master_profile
-    
-    filter_type = request.GET.get('filter', 'all')
-    show_completed = request.GET.get('show_completed') == '1'  # чекбокс включён?
-    
+
+    filter_type = request.GET.get("filter", "all")
+    show_completed = request.GET.get("show_completed") == "1"  # чекбокс включён?
+
     today = timezone.now().date()
     tomorrow = today + timedelta(days=1)
-    
+
     appointments = Appointment.objects.filter(master=master)
-    
+
     # Фильтр по дате
-    if filter_type == 'today':
+    if filter_type == "today":
         appointments = appointments.filter(date=today)
-    elif filter_type == 'tomorrow':
+    elif filter_type == "tomorrow":
         appointments = appointments.filter(date=tomorrow)
-    
+
     # По умолчанию скрываем завершённые/отменённые/не пришедшие
     if not show_completed:
-        appointments = appointments.exclude(status__in=['completed', 'no_show', 'cancelled'])
-    
-    appointments = appointments.order_by('-date', 'time')
-    
+        appointments = appointments.exclude(
+            status__in=["completed", "no_show", "cancelled"]
+        )
+
+    appointments = appointments.order_by("-date", "time")
+
     # Статистика для сегодня (для примера, можно убрать если не нужно)
     appointments_today = Appointment.objects.filter(master=master, date=today)
     total_today = sum(app.total_price() for app in appointments_today)
-    appointments_new = appointments_today.filter(status='new')
-    
+    appointments_new = appointments_today.filter(status="new")
+
     context = {
-        'master': master,
-        'appointments': appointments,
-        'appointments_today': appointments_today,
-        'total_today': total_today,
-        'appointments_new': appointments_new,
-        'today': today,
-        'tomorrow': tomorrow,
-        'show_completed': show_completed,  # передаём в шаблон
+        "master": master,
+        "appointments": appointments,
+        "appointments_today": appointments_today,
+        "total_today": total_today,
+        "appointments_new": appointments_new,
+        "today": today,
+        "tomorrow": tomorrow,
+        "show_completed": show_completed,  # передаём в шаблон
     }
-    
-    return render(request, 'core/master_dashboard.html', context)
+
+    return render(request, "core/master_dashboard.html", context)
 
 
 @login_required
@@ -1000,3 +1091,194 @@ def master_change_status(request, appointment_id, new_status):
         messages.error(request, "Недопустимый статус.")
 
     return redirect("master_dashboard")
+
+
+def offer_view(request):
+    return render(request, "core/offer.html")
+
+
+def offer_pdf(request):
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = 'attachment; filename="offer_blademaster.pdf"'
+
+    p = canvas.Canvas(response, pagesize=A4)
+    width, height = A4
+
+    # ✅ ТВОЙ ШРИФТ: core/static/fonts/Arial.ttf
+    # settings.BASE_DIR обычно указывает на корень проекта, где лежит папка core/
+    font_path = os.path.join(settings.BASE_DIR, "core", "static", "fonts", "Arial.ttf")
+
+    try:
+        if os.path.exists(font_path):
+            pdfmetrics.registerFont(TTFont("ArialCustom", font_path))
+            p.setFont("ArialCustom", 12)
+        else:
+            # fallback на случай если путь неправильный
+            p.setFont("Helvetica", 12)
+    except Exception:
+        p.setFont("Helvetica", 12)
+
+    y = height - 25 * mm
+    line_h = 7 * mm
+
+    lines = [
+        "Публичная оферта BladeMaster",
+        "",
+        "1. Общие положения",
+        "1.1. Настоящая оферта определяет условия оказания услуг барбершопа «BladeMaster».",
+        "1.2. Оформляя запись, клиент подтверждает согласие с условиями оферты.",
+        "",
+        "2. Предмет оферты",
+        "2.1. Исполнитель оказывает услуги барбершопа согласно выбранным услугам и времени записи.",
+        "",
+        "3. Порядок записи и отмены",
+        "3.1. Запись осуществляется через сайт.",
+        "3.2. Отмена записи возможна не позднее чем за 2 часа до времени визита.",
+        "",
+        "4. Стоимость и оплата",
+        "4.1. Стоимость услуг определяется прайс-листом на сайте.",
+        "4.2. Предоплата (если выбрана) рассчитывается автоматически.",
+        "",
+        "5. Прочие условия",
+        "5.1. Исполнитель вправе изменять оферту, размещая актуальную версию на сайте.",
+    ]
+
+    for line in lines:
+        if y < 20 * mm:
+            p.showPage()
+            y = height - 25 * mm
+            try:
+                if os.path.exists(font_path):
+                    p.setFont("ArialCustom", 12)
+                else:
+                    p.setFont("Helvetica", 12)
+            except Exception:
+                p.setFont("Helvetica", 12)
+
+        p.drawString(20 * mm, y, line)
+        y -= line_h
+
+    p.showPage()
+    p.save()
+    return response
+
+@staff_member_required
+def admin_reports(request):
+    """
+    Отчёты:
+    A) Плановая нагрузка: всё кроме cancelled
+    B) Факт выполнено: только completed
+    """
+
+    today = timezone.localdate()
+    default_from = today - timedelta(days=30)
+    default_to = today
+
+    date_from_str = request.GET.get("from")
+    date_to_str = request.GET.get("to")
+
+    try:
+        date_from = datetime.strptime(date_from_str, "%Y-%m-%d").date() if date_from_str else default_from
+    except ValueError:
+        date_from = default_from
+
+    try:
+        date_to = datetime.strptime(date_to_str, "%Y-%m-%d").date() if date_to_str else default_to
+    except ValueError:
+        date_to = default_to
+
+    qs_all = Appointment.objects.filter(date__gte=date_from, date__lte=date_to)
+
+    # A) План: всё кроме отменённых
+    qs_plan = qs_all.exclude(status="cancelled")
+
+    # B) Факт: только выполненные
+    qs_fact = qs_all.filter(status="completed")
+
+    def calc_master_stats(qs):
+        stats = []
+        masters = Master.objects.all()
+        for m in masters:
+            m_apps = qs.filter(master=m)
+            total_minutes = 0
+            for app in m_apps.prefetch_related("service"):
+                total_minutes += sum(s.duration for s in app.service.all())
+            stats.append({
+                "master": m,
+                "appointments_count": m_apps.count(),
+                "total_minutes": total_minutes,
+                "total_hours": round(total_minutes / 60, 1),
+            })
+        stats.sort(key=lambda x: x["total_minutes"], reverse=True)
+        return stats
+
+    # ТОП УСЛУГ (ПЛАН)
+    top_services_plan = (
+        Service.objects.filter(appointment__in=qs_plan)
+        .annotate(bookings_count=Count("appointment", distinct=True))
+        .annotate(
+            estimated_revenue=ExpressionWrapper(
+                F("price") * F("bookings_count"),
+                output_field=IntegerField()
+            )
+        )
+        .order_by("-bookings_count")[:10]
+    )
+
+    # ТОП УСЛУГ (ФАКТ)
+    top_services_fact = (
+        Service.objects.filter(appointment__in=qs_fact)
+        .annotate(bookings_count=Count("appointment", distinct=True))
+        .annotate(
+            estimated_revenue=ExpressionWrapper(
+                F("price") * F("bookings_count"),
+                output_field=IntegerField()
+            )
+        )
+        .order_by("-bookings_count")[:10]
+    )
+
+    # ЗАГРУЗКА МАСТЕРОВ
+    master_stats_plan = calc_master_stats(qs_plan)
+    master_stats_fact = calc_master_stats(qs_fact)
+
+    # СТАТЫ по статусам
+    counts = {
+        "new": qs_all.filter(status="new").count(),
+        "confirmed": qs_all.filter(status="confirmed").count(),
+        "completed": qs_all.filter(status="completed").count(),
+        "no_show": qs_all.filter(status="no_show").count(),
+        "cancelled": qs_all.filter(status="cancelled").count(),
+    }
+
+    total_plan = qs_plan.count()
+    total_fact = qs_fact.count()
+
+    # ПРЕДОПЛАТЫ (реальные)
+    total_prepayment_plan = qs_plan.aggregate(total=Sum("prepayment_amount"))["total"] or Decimal("0.00")
+    total_prepayment_fact = qs_fact.aggregate(total=Sum("prepayment_amount"))["total"] or Decimal("0.00")
+    prepay_count_plan = qs_plan.filter(prepayment_amount__gt=0).count()
+    prepay_count_fact = qs_fact.filter(prepayment_amount__gt=0).count()
+
+    context = {
+        "date_from": date_from,
+        "date_to": date_to,
+
+        "counts": counts,
+        "total_plan": total_plan,
+        "total_fact": total_fact,
+
+        "total_prepayment_plan": total_prepayment_plan,
+        "total_prepayment_fact": total_prepayment_fact,
+
+        "top_services_plan": top_services_plan,
+        "top_services_fact": top_services_fact,
+
+        "master_stats_plan": master_stats_plan,
+        "master_stats_fact": master_stats_fact,
+
+        "prepay_count_plan": prepay_count_plan,
+        "prepay_count_fact": prepay_count_fact,
+    }
+
+    return render(request, "core/admin_reports.html", context)

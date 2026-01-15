@@ -107,3 +107,14 @@ class Review(models.Model):
 
     def __str__(self):
         return f"Отзыв от {self.appointment.client_name} — {self.rating} звезд"
+    
+class WorkingHours(models.Model):
+    start_time = models.TimeField("Начало рабочего дня", default="10:00")
+    end_time = models.TimeField("Конец рабочего дня", default="22:00")
+
+    def __str__(self):
+        return f"Рабочие часы: {self.start_time} – {self.end_time}"
+
+    class Meta:
+        verbose_name = "Рабочие часы"
+        verbose_name_plural = "Рабочие часы"

@@ -46,6 +46,39 @@
                                     <span class="fs-4 fw-bold">Итого</span>
                                     <span class="fs-3 fw-bold text-gold">{{ appointment.total_price }} ₸</span>
                                 </div>
+                                {% if appointment.prepayment_amount and appointment.prepayment_amount|floatformat:0 != "0" %}
+  <div class="d-flex justify-content-between mt-3">
+      <span class="fs-5">Предоплата</span>
+      <span class="fs-5 text-gold fw-bold">{{ appointment.prepayment_amount }} ₸</span>
+  </div>
+
+  <div class="d-flex justify-content-between mt-2">
+      <span class="fs-5">Способ</span>
+      <span class="fs-6 text-muted">
+        {{ appointment.prepayment_method|default:"(не указан)" }}
+      </span>
+  </div>
+
+  <div class="d-flex justify-content-between mt-2 pt-2 border-top border-secondary">
+      <span class="fs-5 fw-bold">Осталось оплатить</span>
+      <span class="fs-5 fw-bold text-gold">
+  {{ remaining_amount }} ₸
+</span>
+
+  </div>
+
+  <div class="text-muted small mt-2">
+    * Предоплата сейчас — имитация (не реальная оплата).
+  </div>
+{% else %}
+  <div class="d-flex justify-content-between mt-3">
+      <span class="fs-5">Оплата</span>
+      <span class="fs-6 text-muted">
+        {{ appointment.prepayment_method|default:"На месте (не указан способ)" }}
+      </span>
+  </div>
+{% endif %}
+
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -66,7 +99,7 @@
                     </div>
 
                     <!-- Отзыв -->
-                    {% if appointment.status not in 'cancelled' %}
+                   {% if appointment.status != 'cancelled' %}
                         {% if not appointment.review %}
                         <div class="border-top border-secondary pt-5 mt-5">
                             <h4 class="text-center mb-4 text-gold fw-bold">Оцените мастера {{ appointment.master.full_name }}</h4>
@@ -125,7 +158,7 @@
 
                     <!-- Кнопки действий -->
                     <div class="text-center mt-5 pt-5 border-top border-secondary">
-                        {% if appointment.status in 'new,confirmed' %}
+                        {% if appointment.status == 'new' or appointment.status == 'confirmed' %}
                         <div class="mb-5">
                             <p class="text-muted small mb-3">Отменить можно не позднее чем за 2 часа до начала</p>
                             <a href="{% url 'cancel_appointment' appointment.id %}" 

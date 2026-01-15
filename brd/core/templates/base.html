@@ -190,10 +190,10 @@
         }
 
         .logo-img {
-            height: 70px;
+            height: 60px;
             /* большое лого на десктопе */
             width: auto;
-            max-height: 80px;
+            max-height: 70px;
             object-fit: contain;
             /* не растягивается, сохраняет пропорции */
         }
@@ -221,6 +221,8 @@
 
         /* Если хочешь текст всё-таки оставить на мобильных — просто удали .brand-text { display: none; } */
     </style>
+    {% block extra_head %}{% endblock %}
+
 </head>
 
 <body class="d-flex flex-column min-vh-100">
@@ -229,7 +231,7 @@
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="/">
                 <!-- Лого большое, но не растягивает навбар -->
-                <img src="{% static 'images/logo.png' %}" alt="BladeMaster" class="logo-img me-2">
+                <img id="brandLogo" src="{% static 'images/logo.png' %}" alt="BladeMaster" class="logo-img me-2">
                 <span class="brand-text d-none d-lg-inline fs-3 fw-bold text-gold">BladeMaster</span>
             </a>
 
@@ -251,6 +253,10 @@
                         <a class="nav-link {% if '/masters' in request.path %}active{% endif %}"
                             href="/masters/">Мастера</a>
                     </li>
+                    {% if user.is_staff %}
+                    <li class="nav-item"><a class="nav-link" href="{% url 'admin_reports' %}">Отчёты</a></li>
+                    {% endif %}
+
 
                     <li class="nav-item dropdown ms-2 ms-lg-4">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
@@ -311,11 +317,26 @@
         window.addEventListener('scroll', () => {
             document.querySelector('.navbar').classList.toggle('scrolled', window.scrollY > 80);
         });
+        function openFullOffer() {
+            document.getElementById("offerShort").style.display = "none";
+            document.getElementById("offerFull").style.display = "block";
+        }
+
+        // когда модалка закрывается — возвращаем короткую версию
+        document.addEventListener('DOMContentLoaded', function () {
+            const modal = document.getElementById('offerModal');
+            modal.addEventListener('hidden.bs.modal', function () {
+                document.getElementById("offerShort").style.display = "block";
+                document.getElementById("offerFull").style.display = "none";
+            });
+        });
     </script>
 
     <!-- flatpickr (подключаем только когда нужен, но можно оставить глобально) -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+
+    {% block extra_scripts %}{% endblock %}
 </body>
 
 </html>

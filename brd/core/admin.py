@@ -1,5 +1,11 @@
 from django.contrib import admin
 from .models import Service, Master, Appointment, Review
+from .models import WorkingHours
+
+@admin.register(WorkingHours)
+class WorkingHoursAdmin(admin.ModelAdmin):
+    list_display = ("start_time", "end_time")
+
 
 
 @admin.register(Service)
