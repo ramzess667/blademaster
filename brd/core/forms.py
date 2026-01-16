@@ -25,3 +25,35 @@ class BookingAuthForm(forms.Form):
                     raise forms.ValidationError("Пароли не совпадают")
         
         return cleaned_data
+    
+class ClientProfileForm(forms.Form):
+    first_name = forms.CharField(label="Имя", max_length=150)
+    email = forms.EmailField(label="Email", required=False)
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+
+        # Красивые классы под твой дизайн
+        self.fields["first_name"].widget.attrs.update({
+            "class": "form-control bg-dark text-light border-gold",
+            "placeholder": "Ваше имя"
+        })
+        self.fields["email"].widget.attrs.update({
+            "class": "form-control bg-dark text-light border-gold",
+            "placeholder": "example@mail.com"
+        })
+
+        # Подставляем текущие значения
+        if user and not self.is_bound:
+            self.initial["first_name"] = user.first_name
+            self.initial["email"] = user.email
+
+    def save(self):
+        """Сохраняем изменения в User."""
+        if not self.user:
+            return
+
+        self.user.first_name = self.cleaned_data["first_name"].strip()
+        self.user.email = (self.cleaned_data.get("email") or "").strip()
+        self.user.save(update_fields=["first_name", "email"])

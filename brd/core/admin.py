@@ -1,6 +1,8 @@
 from django.contrib import admin
 from .models import Service, Master, Appointment, Review
 from .models import WorkingHours
+from .models import BlockedSlot
+
 
 @admin.register(WorkingHours)
 class WorkingHoursAdmin(admin.ModelAdmin):
@@ -38,3 +40,9 @@ class AppointmentAdmin(admin.ModelAdmin):
 class ReviewAdmin(admin.ModelAdmin):
     list_display = ['appointment', 'rating', 'created_at']
     list_filter = ['rating']
+
+@admin.register(BlockedSlot)
+class BlockedSlotAdmin(admin.ModelAdmin):
+    list_display = ("date", "master", "time_from", "time_to", "reason")
+    list_filter = ("date", "master")
+    search_fields = ("reason", "master__full_name")

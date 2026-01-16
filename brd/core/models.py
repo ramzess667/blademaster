@@ -118,3 +118,28 @@ class WorkingHours(models.Model):
     class Meta:
         verbose_name = "Рабочие часы"
         verbose_name_plural = "Рабочие часы"
+        
+class BlockedSlot(models.Model):
+    master = models.ForeignKey(
+        Master,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="blocked_slots",
+        verbose_name="Мастер (если пусто — блокировка для всех)"
+    )
+    date = models.DateField("Дата")
+    time_from = models.TimeField("С", null=True, blank=True)
+    time_to = models.TimeField("До", null=True, blank=True)
+    reason = models.CharField("Причина", max_length=255, blank=True)
+
+    class Meta:
+        verbose_name = "Блокировка времени"
+        verbose_name_plural = "Блокировки времени"
+        ordering = ["-date", "time_from"]
+
+    def __str__(self):
+        who = self.master.full_name if self.master else "Все мастера"
+        if self.time_from and self.time_to:
+            return f"{who}: {self.date} {self.time_from.strftime('%H:%M')}-{self.time_to.strftime('%H:%M')}"
+        return f"{who}: {self.date} (весь день)"

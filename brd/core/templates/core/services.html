@@ -4,162 +4,240 @@
 
 <!-- Заголовок страницы -->
 <section class="py-5 text-center border-bottom border-secondary">
-    <div class="container" data-aos="fade-down">
-        <h1 class="display-5 fw-bold text-gold mb-3">Наши услуги</h1>
-        <p class="lead text-muted">Выберите одну или несколько процедур</p>
-        {% if selected_master %}
-        <p class="text-gold fw-bold">Мастер: {{ selected_master.full_name }} (предвыбран)</p>
-        {% endif %}
-    </div>
+  <div class="container" data-aos="fade-down">
+    <h1 class="display-5 fw-bold text-gold mb-3">Наши услуги</h1>
+    <p class="lead text-muted">Выберите одну или несколько процедур</p>
+    {% if selected_master %}
+      <p class="text-gold fw-bold">Мастер: {{ selected_master.full_name }} (предвыбран)</p>
+    {% endif %}
+  </div>
 </section>
 
-<section class="py-5">
-    <div class="container">
-        <!-- Фильтр -->
-        <div class="text-center mb-5" data-aos="fade-up" data-aos-delay="100">
-            <select id="categoryFilter" class="form-select form-select-lg w-100 w-md-50 mx-auto bg-secondary text-light border-gold">
-                <option value="all" selected>Все категории</option>
-                <option value="haircut">Стрижки</option>
-                <option value="beard">Бритьё и оформление бороды</option>
-                <option value="care">Уход</option>
-                <option value="complex">Комплексные процедуры</option>
-            </select>
-        </div>
+<!-- Поиск -->
+<div class="container mt-4" data-aos="fade-up">
+  <form method="get" action="{% url 'services' %}"
+        class="row g-2 g-md-3 justify-content-center align-items-stretch search-form">
 
-        <form method="post" action="{% if selected_master %}{% url 'book_datetime_multi' %}{% else %}{% url 'book_select_master' %}{% endif %}" id="servicesForm">
-            {% csrf_token %}
-            {% if selected_master %}
-            <input type="hidden" name="master_id" value="{{ selected_master.id }}">
-            {% endif %}
+    {# если мастер предвыбран — сохраняем его при поиске #}
+    {% if selected_master %}
+      <input type="hidden" name="master" value="{{ selected_master.id }}">
+    {% endif %}
 
-            <div class="row g-4" id="servicesList">
-                {% for service in services %}
-                <div class="col-md-6 col-lg-4 service-card" data-category="{{ service.category|lower }}" data-aos="zoom-in" data-aos-delay="{% cycle '100' '200' '300' '100' %}">
-                    <div class="card h-100 bg-dark border-0 shadow-lg hover-lift">
-                        <div class="card-body d-flex flex-column p-4 text-center">
-                            <h5 class="card-title fw-bold fs-4 text-gold mb-3">{{ service.name }}</h5>
-                            <p class="text-muted flex-grow-1 mb-4">{{ service.description|default:"Профессиональная премиум-процедура" |truncatechars:100 }}</p>
-                            
-                            <div class="mt-auto">
-                                <p class="fs-3 fw-bold text-gold mb-2">{{ service.price }} ₸</p>
-                                <p class="text-muted small mb-3">
-                                    <i class="bi bi-clock me-1"></i> {{ service.duration }} мин
-                                </p>
-                                
-                                <div class="form-check mt-2">
-                                    <input class="form-check-input" type="checkbox" name="services" value="{{ service.id }}" id="service{{ service.id }}" data-name="{{ service.name }}">
-                                    <label class="form-check-label fw-medium" for="service{{ service.id }}">
-                                        Выбрать
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% empty %}
-                <div class="col-12 text-center py-5">
-                    <p class="text-muted fs-5">Услуги пока не добавлены</p>
-                </div>
-                {% endfor %}
-            </div>
-
-            <!-- Фиксированная кнопка на мобильных + обычная на десктоп -->
-            <div class="fixed-bottom d-md-none bg-dark border-top border-secondary py-3 px-4 shadow-lg" id="mobileActionBar" style="display: none;">
-                <div class="container-fluid">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div class="text-gold fw-bold" id="selectedCountMobile">0 услуг выбрано</div>
-                        <button type="submit" class="btn btn-gold btn-lg px-5 fw-bold rounded-pill" disabled id="submitBtnMobile">
-                            Далее → Мастер
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Обычная кнопка для десктоп -->
-            <div class="text-center mt-5 pt-5 d-none d-md-block" id="desktopSubmit">
-                <div class="mb-3">
-                    <span class="fs-5 fw-bold text-gold" id="selectedCountDesktop">Выбрано услуг: 0</span>
-                </div>
-                <button type="submit" class="btn btn-gold btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg" disabled id="submitBtnDesktop">
-                    Далее → Выбрать мастера
-                </button>
-            </div>
-        </form>
+    <div class="col-12 col-md-6">
+      <input
+        type="search"
+        name="q"
+        class="form-control form-control-lg bg-dark text-light border-gold"
+        placeholder="Поиск услуг: стрижка, борода, уход..."
+        value="{{ q }}"
+        autocomplete="off"
+      >
     </div>
+
+    <div class="col-12 col-md-auto">
+      <button type="submit" class="btn btn-gold btn-lg w-100 w-md-auto">
+        Найти
+      </button>
+    </div>
+
+    {% if q %}
+      <div class="col-12 text-center">
+        <a class="text-muted"
+           href="{% url 'services' %}{% if selected_master %}?master={{ selected_master.id }}{% endif %}">
+          Сбросить поиск
+        </a>
+      </div>
+    {% endif %}
+  </form>
+
+  {% if q %}
+    <p class="text-center text-muted mt-3 mb-0 px-2">
+      Результаты поиска по запросу: <strong>«{{ q }}»</strong>
+    </p>
+  {% endif %}
+</div>
+
+<section class="py-5">
+  <div class="container">
+
+    <!-- Фильтр -->
+    <div class="text-center mb-5" data-aos="fade-up" data-aos-delay="100">
+      <select id="categoryFilter"
+              class="form-select form-select-lg w-100 w-md-50-custom mx-auto bg-secondary text-light border-gold">
+        <option value="all" selected>Все категории</option>
+        <option value="haircut">Стрижки</option>
+        <option value="beard">Бритьё и оформление бороды</option>
+        <option value="care">Уход</option>
+        <option value="complex">Комплексные процедуры</option>
+      </select>
+    </div>
+
+    <form method="post"
+          action="{% if selected_master %}{% url 'book_datetime_multi' %}{% else %}{% url 'book_select_master' %}{% endif %}"
+          id="servicesForm">
+      {% csrf_token %}
+      {% if selected_master %}
+        <input type="hidden" name="master_id" value="{{ selected_master.id }}">
+      {% endif %}
+
+      <div class="row g-4" id="servicesList">
+
+        {% if services %}
+          {% for service in services %}
+            <div class="col-md-6 col-lg-4 service-card"
+                 data-category="{{ service.category|lower }}"
+                 data-aos="zoom-in"
+                 data-aos-delay="{% cycle '100' '200' '300' '100' %}">
+              <div class="card h-100 bg-dark border-0 shadow-lg hover-lift">
+                <div class="card-body d-flex flex-column p-4 text-center">
+                  <h5 class="card-title fw-bold fs-4 text-gold mb-3">{{ service.name }}</h5>
+                  <p class="text-muted flex-grow-1 mb-4">
+                    {{ service.description|default:"Профессиональная премиум-процедура"|truncatechars:100 }}
+                  </p>
+
+                  <div class="mt-auto">
+                    <p class="fs-3 fw-bold text-gold mb-2">{{ service.price }} ₸</p>
+                    <p class="text-muted small mb-3">
+                      <i class="bi bi-clock me-1"></i> {{ service.duration }} мин
+                    </p>
+
+                    <div class="form-check mt-2">
+                      <input class="form-check-input" type="checkbox"
+                             name="services" value="{{ service.id }}"
+                             id="service{{ service.id }}" data-name="{{ service.name }}">
+                      <label class="form-check-label fw-medium" for="service{{ service.id }}">
+                        Выбрать
+                      </label>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <!-- НИЧЕГО НЕ НАЙДЕНО (после поиска) -->
+          <div class="col-12 text-center py-5" data-aos="fade-up">
+            <h4 class="text-muted mb-3">Ничего не найдено 😕</h4>
+            <p class="text-secondary mb-4">
+              Попробуйте изменить запрос или выберите другую категорию.
+            </p>
+            <a href="{% url 'services' %}{% if selected_master %}?master={{ selected_master.id }}{% endif %}"
+               class="btn btn-outline-gold btn-lg">
+              Показать все услуги
+            </a>
+          </div>
+        {% endif %}
+
+      </div>
+
+      <!-- Фиксированная кнопка на мобильных + обычная на десктоп -->
+      <div class="fixed-bottom d-md-none bg-dark border-top border-secondary py-3 px-4 shadow-lg"
+           id="mobileActionBar" style="display: none;">
+        <div class="container-fluid">
+          <div class="d-flex align-items-center justify-content-between">
+            <div class="text-gold fw-bold" id="selectedCountMobile">0 услуг выбрано</div>
+            <button type="submit" class="btn btn-gold btn-lg px-5 fw-bold rounded-pill"
+                    disabled id="submitBtnMobile">
+              Далее → Мастер
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Обычная кнопка для десктоп -->
+      <div class="text-center mt-5 pt-5 d-none d-md-block" id="desktopSubmit">
+        <div class="mb-3">
+          <span class="fs-5 fw-bold text-gold" id="selectedCountDesktop">Выбрано услуг: 0</span>
+        </div>
+        <button type="submit" class="btn btn-gold btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg"
+                disabled id="submitBtnDesktop">
+          Далее → Выбрать мастера
+        </button>
+      </div>
+
+    </form>
+  </div>
 </section>
 
 <script>
-    // Фильтр категорий
-    document.getElementById('categoryFilter').addEventListener('change', function () {
-        const selected = this.value.toLowerCase();
-        const cards = document.querySelectorAll('.service-card');
+  // Фильтр категорий
+  document.getElementById('categoryFilter').addEventListener('change', function () {
+    const selected = this.value.toLowerCase();
+    const cards = document.querySelectorAll('.service-card');
 
-        cards.forEach(card => {
-            const cardCategory = card.dataset.category;
-            card.style.display = (selected === 'all' || cardCategory === selected) ? 'block' : 'none';
-        });
-
-        setTimeout(() => AOS.refreshHard(), 100);
+    cards.forEach(card => {
+      const cardCategory = card.dataset.category;
+      card.style.display = (selected === 'all' || cardCategory === selected) ? 'block' : 'none';
     });
 
-    // Логика выбора услуг + активация кнопок
-    const checkboxes = document.querySelectorAll('input[name="services"]');
-    const submitBtnDesktop = document.getElementById('submitBtnDesktop');
-    const submitBtnMobile = document.getElementById('submitBtnMobile');
-    const selectedCountDesktop = document.getElementById('selectedCountDesktop');
-    const selectedCountMobile = document.getElementById('selectedCountMobile');
-    const mobileBar = document.getElementById('mobileActionBar');
+    setTimeout(() => AOS.refreshHard(), 100);
+  });
 
-    function updateSelection() {
-        const selected = Array.from(checkboxes).filter(cb => cb.checked).length;
-        
-        const text = selected === 0 ? '0 услуг выбрано' : `${selected} услуг выбрано`;
-        
-        selectedCountDesktop.textContent = `Выбрано услуг: ${selected}`;
-        selectedCountMobile.textContent = text;
-        
-        const isDisabled = selected === 0;
-        
-        submitBtnDesktop.disabled = isDisabled;
-        submitBtnMobile.disabled = isDisabled;
-        
-        mobileBar.style.display = selected > 0 ? 'block' : 'none';
-    }
+  // Логика выбора услуг + активация кнопок
+  const checkboxes = document.querySelectorAll('input[name="services"]');
+  const submitBtnDesktop = document.getElementById('submitBtnDesktop');
+  const submitBtnMobile = document.getElementById('submitBtnMobile');
+  const selectedCountDesktop = document.getElementById('selectedCountDesktop');
+  const selectedCountMobile = document.getElementById('selectedCountMobile');
+  const mobileBar = document.getElementById('mobileActionBar');
 
-    checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateSelection);
-    });
+  function updateSelection() {
+    const selected = Array.from(checkboxes).filter(cb => cb.checked).length;
 
-    // Инициализация
-    updateSelection();
+    const text = selected === 0 ? '0 услуг выбрано' : `${selected} услуг выбрано`;
 
-    // Плавный hover-эффект карточек
-    document.querySelectorAll('.service-card').forEach(card => {
-        card.addEventListener('mouseenter', () => card.classList.add('hover-lift'));
-        card.addEventListener('mouseleave', () => card.classList.remove('hover-lift'));
-    });
+    selectedCountDesktop.textContent = `Выбрано услуг: ${selected}`;
+    selectedCountMobile.textContent = text;
+
+    const isDisabled = selected === 0;
+
+    if (submitBtnDesktop) submitBtnDesktop.disabled = isDisabled;
+    if (submitBtnMobile) submitBtnMobile.disabled = isDisabled;
+
+    if (mobileBar) mobileBar.style.display = selected > 0 ? 'block' : 'none';
+  }
+
+  checkboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', updateSelection);
+  });
+
+  updateSelection();
+
+  // hover-эффект карточек (не обязательно, но оставил)
+  document.querySelectorAll('.service-card').forEach(card => {
+    card.addEventListener('mouseenter', () => card.classList.add('hover-lift'));
+    card.addEventListener('mouseleave', () => card.classList.remove('hover-lift'));
+  });
 </script>
 
 <style>
-    .hover-lift {
-        transform: translateY(-8px);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45) !important;
-    }
+  .hover-lift {
+    transform: translateY(-8px);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45) !important;
+  }
 
-    .fixed-bottom {
-        z-index: 1000;
-    }
+  .fixed-bottom { z-index: 1000; }
 
-    .form-select {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23FFD700' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
-        background-position: right 1rem center;
-        background-size: 12px;
-    }
+  .form-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23FFD700' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+    background-position: right 1rem center;
+    background-size: 12px;
+  }
 
-    .border-gold {
-        border-color: #FFD700 !important;
-    }
+  .border-gold { border-color: #FFD700 !important; }
+
+  /* АДАПТИВ ДЛЯ ПОИСКА */
+  .search-form .form-control,
+  .search-form .btn {
+    height: 52px;
+  }
+
+  @media (min-width: 768px) {
+    .w-md-auto { width: auto !important; }
+    .w-md-50-custom { width: 50% !important; }
+  }
 </style>
 
 {% endblock %}

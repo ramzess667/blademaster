@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<section class="py-5 text-center border-bottom border-secondary">
+  <div class="container" data-aos="fade-down">
+    <h1 class="display-6 fw-bold text-gold mb-2">Профиль</h1>
+    <p class="text-muted mb-0">Обновите имя и email</p>
+  </div>
+</section>
+
+<section class="py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-6">
+
+        {% if messages %}
+          <div class="mb-4">
+            {% for message in messages %}
+              <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} text-center">
+                {{ message }}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="card bg-dark border-0 shadow-lg">
+          <div class="card-body p-4 p-md-5">
+
+            <form method="post" novalidate>
+              {% csrf_token %}
+
+              <div class="mb-3">
+                <label class="fw-bold text-muted">Телефон (нельзя изменить)</label>
+                <input type="text"
+                       class="form-control bg-dark text-light border-gold"
+                       value="{{ client.phone }}"
+                       readonly>
+                <div class="form-text text-secondary">
+                  Телефон привязан к вашим записям. Изменение сделаем отдельной функцией.
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="fw-bold text-muted">Имя</label>
+                {{ form.first_name }}
+                {% if form.first_name.errors %}
+                  <div class="text-danger small mt-1">{{ form.first_name.errors }}</div>
+                {% endif %}
+              </div>
+
+              <div class="mb-4">
+                <label class="fw-bold text-muted">Email</label>
+                {{ form.email }}
+                {% if form.email.errors %}
+                  <div class="text-danger small mt-1">{{ form.email.errors }}</div>
+                {% endif %}
+              </div>
+
+              <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-gold btn-lg fw-bold rounded-pill">
+                  Сохранить
+                </button>
+                <a href="{% url 'cabinet_dashboard' %}" class="btn btn-outline-gold btn-lg rounded-pill">
+                  ← Назад к записям
+                </a>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .border-gold { border-color: #FFD700 !important; }
+</style>
+
+{% endblock %}

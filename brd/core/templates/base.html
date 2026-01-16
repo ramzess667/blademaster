@@ -279,6 +279,7 @@
                             <li><a class="dropdown-item" href="{% url 'master_dashboard' %}">Расписание</a></li>
                             {% else %}
                             <li><a class="dropdown-item" href="{% url 'cabinet_dashboard' %}">Мои записи</a></li>
+                            <li><a class="dropdown-item" href="{% url 'cabinet_profile' %}">Профиль</a></li>
                             {% endif %}
                             <li><a class="dropdown-item text-danger" href="{% url 'cabinet_logout' %}">Выйти</a></li>
                             {% else %}

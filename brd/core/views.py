@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.core.mail import send_mail
-from .models import Service, Master, Appointment, Review, User, Client
+from .models import Service, Master, Appointment, Review, User, Client, BlockedSlot
 from django.utils import timezone
 from django.conf import settings
 from datetime import datetime, timedelta, time as dtime
@@ -16,10 +16,12 @@ from reportlab.lib.colors import HexColor
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, authenticate, logout
-from .forms import BookingAuthForm
+from .forms import BookingAuthForm, ClientProfileForm
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import user_passes_test
 from reportlab.lib import colors
+from django.db.models import Q
+import requests
 from reportlab.platypus import (
     SimpleDocTemplate,
     Table,
@@ -43,6 +45,27 @@ logger = logging.getLogger(__name__)
 
 
 import os
+
+
+def send_telegram(text: str):
+    token = getattr(settings, "TELEGRAM_BOT_TOKEN", "")
+    chat_id = getattr(settings, "TELEGRAM_CHAT_ID", "")
+    if not token or not chat_id:
+        return
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+
+    try:
+        requests.post(url, json=payload, timeout=5)
+    except Exception:
+        pass
+
 
 
 register = template.Library()
@@ -76,13 +99,26 @@ def services(request):
     if master_id:
         try:
             selected_master = Master.objects.get(id=master_id)
-            request.session["selected_master_id"] = master_id  # сохраняем
+            request.session["selected_master_id"] = master_id
         except Master.DoesNotExist:
             pass
 
+    q = (request.GET.get("q") or "").strip()
+
+    services_qs = Service.objects.all()
+    if q:
+        words = q.split()
+
+        for word in words:
+            services_qs = services_qs.filter(
+                Q(name__icontains=word) |
+                Q(description__icontains=word) |
+                Q(category__icontains=word)
+            )
     context = {
-        "services": Service.objects.all(),
+        "services": services_qs,
         "selected_master": selected_master,
+        "q": q,  # чтобы сохранить текст в поле поиска
     }
     return render(request, "core/services.html", context)
 
@@ -102,48 +138,6 @@ def book_step1_master(request, service_id):
         {
             "service": service,
             "masters": masters,
-        },
-    )
-
-
-def book_step2_datetime(request, service_id, master_id):
-    service = get_object_or_404(Service, id=service_id)
-    master = get_object_or_404(Master, id=master_id)
-
-    # Генерируем слоты времени: 10:00–22:00 каждые 30 мин
-    times = []
-    start_time = datetime.strptime("10:00", "%H:%M").time()
-    end_time = datetime.strptime("22:00", "%H:%M").time()
-    current = datetime.combine(datetime.today(), start_time)
-    end = datetime.combine(datetime.today(), end_time)
-
-    while current.time() <= end_time:
-        times.append(current.time().strftime("%H:%M"))
-        current += timedelta(minutes=30)
-
-    # Даты: следующие 30 дней
-    today = timezone.now().date()
-    dates = [today + timedelta(days=i) for i in range(30)]
-
-    # Получаем все занятые слоты для этого мастера
-    booked_appointments = Appointment.objects.filter(master=master)
-    booked_slots = {}
-    for app in booked_appointments:
-        date_str = app.date.strftime("%Y-%m-%d")
-        time_str = app.time.strftime("%H:%M")
-        if date_str not in booked_slots:
-            booked_slots[date_str] = []
-        booked_slots[date_str].append(time_str)
-
-    return render(
-        request,
-        "core/book_step2_datetime.html",
-        {
-            "service": service,
-            "master": master,
-            "dates": dates,
-            "times": times,
-            "booked_slots": booked_slots,  # Передаём в шаблон
         },
     )
 
@@ -222,6 +216,36 @@ def book_confirm(request):
     appointment.service.set(services)
     appointment.save()
 
+  # время как строка (без падений)
+    time_text = appointment.time.strftime("%H:%M") if hasattr(appointment.time, "strftime") else str(appointment.time)
+
+    # список услуг
+    services_list = []
+    total_price = 0
+    total_duration = 0
+
+    for s in appointment.service.all():
+        services_list.append(f"• {s.name} — {s.price} ₸ ({s.duration} мин)")
+        total_price += int(s.price)
+        total_duration += int(s.duration)
+
+    services_text = "\n".join(services_list) if services_list else "—"
+
+    send_telegram(
+    "📌 <b>Новая запись</b>\n"
+    f"✂️ Мастер: <b>{appointment.master.full_name}</b>\n"
+    f"📅 Дата: <b>{appointment.date}</b>\n"
+    f"🕒 Время: <b>{time_text}</b>\n"
+    f"👤 Клиент: <b>{appointment.client_name}</b>\n"
+    f"📞 Тел: <b>{appointment.client_phone}</b>\n"
+    "\n"
+    "🧾 <b>Услуги:</b>\n"
+    f"{services_text}\n"
+    "\n"
+    f"⏱ <b>Длительность:</b> {total_duration} мин\n"
+    f"💰 <b>Итого:</b> {total_price} ₸"
+)
+
     # очищаем выбранного мастера в сессии (если был)
     if "selected_master_id" in request.session:
         del request.session["selected_master_id"]
@@ -296,6 +320,41 @@ def cancel_appointment(request, appointment_id):
 
     appointment.status = "cancelled"
     appointment.save()
+
+    # время как строка (без падений)
+    time_text = appointment.time.strftime("%H:%M") if hasattr(appointment.time, "strftime") else str(appointment.time)
+
+    services_list = []
+    total_price = 0
+    total_duration = 0
+
+    for s in appointment.service.all():
+        services_list.append(f"• {s.name} — {s.price} ₸ ({s.duration} мин)")
+        total_price += int(s.price)
+        total_duration += int(s.duration)
+
+    services_text = "\n".join(services_list) if services_list else "—"
+
+    who = request.user.first_name or request.user.username if request.user.is_authenticated else "гость"
+
+
+    send_telegram(
+        "❌ <b>Отмена записи</b>\n"
+        f"👤 Кто отменил: <b>{who}</b>\n"
+        f"✂️ Мастер: <b>{appointment.master.full_name}</b>\n"
+        f"📅 Дата: <b>{appointment.date}</b>\n"
+        f"🕒 Время: <b>{time_text}</b>\n"
+        f"👤 Клиент: <b>{appointment.client_name}</b>\n"
+        f"📞 Тел: <b>{appointment.client_phone}</b>\n"
+        "\n"
+        "🧾 <b>Услуги:</b>\n"
+        f"{services_text}\n"
+        "\n"
+        f"⏱ <b>Длительность:</b> {total_duration} мин\n"
+        f"💰 <b>Сумма:</b> {total_price} ₸"
+    )
+
+
 
     # Уведомление в консоль (потом email)
     print(f"ЗАПИСЬ ОТМЕНЕНА: #{appointment.id} — {appointment.client_name}")
@@ -470,7 +529,7 @@ def get_free_slots(request, master_id, date_str):
         )
 
     current = start_time
-    while current <= end_time:
+    while current < end_time:
         all_slots.append(current.strftime("%H:%M"))
         current += timedelta(minutes=30)
 
@@ -478,6 +537,41 @@ def get_free_slots(request, master_id, date_str):
     appointments = Appointment.objects.filter(
         master=master, date=selected_date, status__in=["new", "confirmed"]
     )
+        # --- Блокировки времени (BlockedSlot) ---
+    # 1) блокировки конкретного мастера
+    # 2) общие блокировки (master=None) — для всех мастеров
+    blocks = BlockedSlot.objects.filter(
+        date=selected_date
+    ).filter(
+        Q(master=master) | Q(master__isnull=True)
+    )
+
+    # Если есть блокировка "весь день" — сразу пусто
+    if blocks.filter(time_from__isnull=True, time_to__isnull=True).exists():
+        return JsonResponse({"free_slots": []})
+
+    blocked_slots = set()
+
+    for b in blocks:
+        # пропускаем "кривые" записи: указано только одно время
+        if (b.time_from and not b.time_to) or (b.time_to and not b.time_from):
+            continue
+
+        if b.time_from and b.time_to:
+            b_start = datetime.combine(selected_date, b.time_from)
+            b_end = datetime.combine(selected_date, b.time_to)
+
+            # если админ случайно поставил наоборот — поменяем местами
+            if b_start > b_end:
+                b_start, b_end = b_end, b_start
+
+            slot_dt = b_start
+            while slot_dt < b_end:
+                t_str = slot_dt.strftime("%H:%M")
+                if t_str in all_slots:
+                    blocked_slots.add(t_str)
+                slot_dt += timedelta(minutes=30)
+
 
     occupied_slots = set()
     for app in appointments:
@@ -498,7 +592,8 @@ def get_free_slots(request, master_id, date_str):
                 occupied_slots.add(slot_time_str)
             slot_dt += timedelta(minutes=30)
 
-    free_slots = [slot for slot in all_slots if slot not in occupied_slots]
+    free_slots = [slot for slot in all_slots if slot not in occupied_slots and slot not in blocked_slots]
+
 
     print("Свободные слоты:", free_slots)
 
@@ -925,6 +1020,32 @@ def cabinet_dashboard(request):
         },
     )
 
+def cabinet_profile(request):
+    if not request.user.is_authenticated:
+        return redirect("cabinet_login")
+
+    try:
+        client = request.user.client
+    except:
+        messages.error(request, "Ошибка профиля.")
+        return redirect("cabinet_login")
+
+    if request.method == "POST":
+        form = ClientProfileForm(request.POST, user=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Профиль обновлён ✅")
+            return redirect("cabinet_profile")
+        else:
+            messages.error(request, "Проверьте поля формы.")
+    else:
+        form = ClientProfileForm(user=request.user)
+
+    return render(request, "core/cabinet_profile.html", {
+        "form": form,
+        "client": client,
+    })
+
 
 def cabinet_cancel_appointment(request, appointment_id):
     if not request.user.is_authenticated:
@@ -953,6 +1074,40 @@ def cabinet_cancel_appointment(request, appointment_id):
 
     appointment.status = "cancelled"
     appointment.save()
+
+  # --- Telegram: отмена из кабинета ---
+    time_text = appointment.time.strftime("%H:%M") if hasattr(appointment.time, "strftime") else str(appointment.time)
+
+    services_list = []
+    total_price = 0
+    total_duration = 0
+
+    for s in appointment.service.all():
+        services_list.append(f"• {s.name} — {s.price} ₸ ({s.duration} мин)")
+        total_price += int(s.price)
+        total_duration += int(s.duration)
+
+    services_text = "\n".join(services_list) if services_list else "—"
+
+    who = request.user.first_name or request.user.username
+
+    send_telegram(
+        "❌ <b>Отмена записи</b>\n"
+        f"👤 Кто отменил: <b>{who}</b>\n"
+        f"✂️ Мастер: <b>{appointment.master.full_name}</b>\n"
+        f"📅 Дата: <b>{appointment.date}</b>\n"
+        f"🕒 Время: <b>{time_text}</b>\n"
+        f"👤 Клиент: <b>{appointment.client_name}</b>\n"
+        f"📞 Тел: <b>{appointment.client_phone}</b>\n"
+        "\n"
+        "🧾 <b>Услуги:</b>\n"
+        f"{services_text}\n"
+        "\n"
+        f"⏱ <b>Длительность:</b> {total_duration} мин\n"
+        f"💰 <b>Сумма:</b> {total_price} ₸"
+    )
+
+
 
     messages.success(request, "Запись успешно отменена.")
     return redirect("cabinet_dashboard")

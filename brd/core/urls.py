@@ -6,7 +6,6 @@ urlpatterns = [
     path('services/', views.services, name='services'),
     path('masters/', views.masters, name='masters'),
     path('book/<int:service_id>/', views.book_step1_master, name='book_service'),  # Выбор мастера
-    path('book/<int:service_id>/<int:master_id>/', views.book_step2_datetime, name='book_datetime'),  # Выбор даты/времени
     path('book/confirm/', views.book_confirm, name='book_confirm'),  # Подтверждение и сохранение
     path('appointment/<int:appointment_id>/success/', views.book_success, name='book_success'),
     path('appointment/<int:appointment_id>/cancel/', views.cancel_appointment, name='cancel_appointment'),
@@ -27,6 +26,6 @@ urlpatterns = [
     path("offer/", views.offer_view, name="offer"),
     path("offer/pdf/", views.offer_pdf, name="offer_pdf"),
     path("reports/", views.admin_reports, name="admin_reports"),
-
+    path('cabinet/profile/', views.cabinet_profile, name='cabinet_profile'),
 
 ]

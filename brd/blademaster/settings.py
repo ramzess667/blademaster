@@ -120,7 +120,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
-    BASE_DIR / 'brd' / 'core' / 'static',  # ← только этот путь, без лишних папок
+   BASE_DIR / 'core' / 'static',  # ← только этот путь, без лишних папок
 ]
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
@@ -149,3 +149,6 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'ramzesemelyanov08@gmail.com'  # Полный email
 EMAIL_HOST_PASSWORD = 'wrsb lqtz zhmb tqyi'  # 16-значный без пробелов!
 DEFAULT_FROM_EMAIL = 'blademaster <ramzesemelyanov08@gmail.com>'
+
+#TELEGRAM_BOT_TOKEN = "8174207092:AAHB5ZR-R45udngHiVZ6onKxix_Zlu8jL_Q"
+#TELEGRAM_CHAT_ID = "6871068872"
