@@ -1,287 +1,329 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<div class="container my-5 py-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-8 col-xxl-7">
-            <div class="card bg-dark text-light border-0 rounded-4 shadow-lg">
-                <!-- Заголовок — всегда золотой -->
-                <div class="card-header bg-warning py-5 text-center">
-                    <h1 class="display-5 fw-bold mb-0 text-dark">
-                        {% if appointment.status == 'cancelled' %}
-                            Запись отменена
-                        {% elif appointment.status == 'completed' %}
-                            Услуга выполнена
-                        {% elif appointment.status == 'confirmed' %}
-                            Запись подтверждена
-                        {% else %}
-                            Запись успешно создана
-                        {% endif %}
-                    </h1>
-                </div>
-
-                <div class="card-body p-4 p-md-5">
-                    <h4 class="text-center mb-5 text-gold fw-bold">Детали записи №{{ appointment.id }}</h4>
-
-                    <div class="row g-4 mb-5">
-                        <div class="col-md-6">
-                            <p class="text-muted small mb-1 text-uppercase">Мастер</p>
-                            <p class="fs-4 fw-medium">{{ appointment.master.full_name }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p class="text-muted small mb-1 text-uppercase">Дата и время</p>
-                            <p class="fs-4 fw-medium">{{ appointment.date|date:"d E Y" }} в {{ appointment.time|time:"H:i" }}</p>
-                        </div>
-                        <div class="col-12">
-                            <p class="text-muted small mb-3 text-uppercase">Услуги</p>
-                            <div class="bg-secondary bg-opacity-10 rounded-4 p-4">
-                                {% for service in appointment.service.all %}
-                                <div class="d-flex justify-content-between mb-3">
-                                    <span class="fs-5">{{ service.name }}</span>
-                                    <span class="fs-5 text-gold">{{ service.price }} ₸</span>
-                                </div>
-                                {% endfor %}
-                                <hr class="border-secondary">
-                                <div class="d-flex justify-content-between">
-                                    <span class="fs-4 fw-bold">Итого</span>
-                                    <span class="fs-3 fw-bold text-gold">{{ appointment.total_price }} ₸</span>
-                                </div>
-                                {% if appointment.prepayment_amount and appointment.prepayment_amount|floatformat:0 != "0" %}
-  <div class="d-flex justify-content-between mt-3">
-      <span class="fs-5">Предоплата</span>
-      <span class="fs-5 text-gold fw-bold">{{ appointment.prepayment_amount }} ₸</span>
-  </div>
-
-  <div class="d-flex justify-content-between mt-2">
-      <span class="fs-5">Способ</span>
-      <span class="fs-6 text-muted">
-        {{ appointment.prepayment_method|default:"(не указан)" }}
-      </span>
-  </div>
-
-  <div class="d-flex justify-content-between mt-2 pt-2 border-top border-secondary">
-      <span class="fs-5 fw-bold">Осталось оплатить</span>
-      <span class="fs-5 fw-bold text-gold">
-  {{ remaining_amount }} ₸
-</span>
-
-  </div>
-
-  <div class="text-muted small mt-2">
-    * Предоплата сейчас — имитация (не реальная оплата).
-  </div>
-{% else %}
-  <div class="d-flex justify-content-between mt-3">
-      <span class="fs-5">Оплата</span>
-      <span class="fs-6 text-muted">
-        {{ appointment.prepayment_method|default:"На месте (не указан способ)" }}
-      </span>
-  </div>
-{% endif %}
-
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <p class="text-muted small mb-1 text-uppercase">Статус</p>
-                            <!-- Всегда золотой бейджик статуса -->
-                            <span class="badge fs-6 px-4 py-2 rounded-pill bg-warning text-dark">
-                                {{ appointment.get_status_display }}
-                            </span>
-                        </div>
-                        <div class="col-md-6">
-                            <p class="text-muted small mb-1 text-uppercase">Клиент</p>
-                            <p class="fs-5 fw-medium mb-1">{{ appointment.client_name }}</p>
-                            <a href="tel:{{ appointment.client_phone }}" class="text-gold text-decoration-none fs-5 fw-bold">{{ appointment.client_phone }}</a>
-                            {% if appointment.client_email %}
-                            <p class="text-muted small mt-2">{{ appointment.client_email }}</p>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Отзыв -->
-                   {% if appointment.status != 'cancelled' %}
-                        {% if not appointment.review %}
-                        <div class="border-top border-secondary pt-5 mt-5">
-                            <h4 class="text-center mb-4 text-gold fw-bold">Оцените мастера {{ appointment.master.full_name }}</h4>
-                            <form method="post" action="{% url 'add_review' appointment.id %}">
-                                {% csrf_token %}
-                                <div class="d-flex justify-content-center gap-3 mb-4">
-                                    {% for i in "12345" %}
-                                    <button type="button" class="btn btn-outline-gold star-btn rounded-circle border-2 p-3" data-value="{{ i }}">
-                                        <span class="fs-3">★</span>
-                                    </button>
-                                    {% endfor %}
-                                </div>
-                                <input type="hidden" name="rating" id="ratingInput" required>
-                                <textarea name="comment" class="form-control bg-secondary bg-opacity-10 text-light border-secondary mb-4" rows="3" placeholder="Ваш отзыв (необязательно)"></textarea>
-                                <div class="text-center">
-                                    <button type="submit" class="btn btn-outline-gold text-gold px-5 py-3 rounded-pill fw-bold">Отправить отзыв</button>
-                                </div>
-                            </form>
-                        </div>
-
-                        <script>
-                            const starButtons = document.querySelectorAll('.star-btn');
-                            const ratingInput = document.getElementById('ratingInput');
-
-                            starButtons.forEach(btn => {
-                                btn.addEventListener('click', () => {
-                                    const value = btn.dataset.value;
-                                    ratingInput.value = value;
-
-                                    starButtons.forEach(b => {
-                                        if (parseInt(b.dataset.value) <= parseInt(value)) {
-                                            b.classList.remove('btn-outline-gold');
-                                            b.classList.add('btn-gold');
-                                        } else {
-                                            b.classList.remove('btn-gold');
-                                            b.classList.add('btn-outline-gold');
-                                        }
-                                    });
-                                });
-                            });
-                        </script>
-                        {% else %}
-                        <div class="border-top border-secondary pt-5 mt-5 text-center">
-                            <h4 class="fw-bold mb-3 text-gold">Спасибо за отзыв!</h4>
-                            <div class="d-flex justify-content-center gap-2 mb-3">
-                                {% for i in "12345" %}
-                                <span class="fs-2 {% if forloop.counter <= appointment.review.rating %}text-gold{% else %}text-muted{% endif %}">★</span>
-                                {% endfor %}
-                            </div>
-                            {% if appointment.review.comment %}
-                            <p class="text-light fs-5"><em>"{{ appointment.review.comment }}"</em></p>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                    {% endif %}
-
-                    <!-- Кнопки действий -->
-                    <div class="text-center mt-5 pt-5 border-top border-secondary">
-                        {% if appointment.status == 'new' or appointment.status == 'confirmed' %}
-                        <div class="mb-5">
-                            <p class="text-muted small mb-3">Отменить можно не позднее чем за 2 часа до начала</p>
-                            <a href="{% url 'cancel_appointment' appointment.id %}" 
-                               class="btn btn-outline-danger px-5 py-3 rounded-pill"
-                               onclick="return confirm('Точно отменить запись?')">Отменить запись</a>
-                        </div>
-                        {% elif appointment.status == 'cancelled' %}
-                        <p class="text-danger fw-medium fs-4 mb-5">Запись отменена</p>
-                        {% endif %}
-
-                        <div class="d-grid d-md-flex justify-content-md-center gap-3 flex-wrap">
-                            {% if appointment.status != 'cancelled' %}
-                            <a href="{% url 'generate_invoice_pdf' appointment.id %}" 
-                               class="btn btn-outline-gold px-5 py-3 rounded-pill fw-bold"
-                               target="_blank">
-                                Скачать счёт
-                            </a>
-                            {% endif %}
-
-                            <a href="/" class="btn btn-outline-gold px-5 py-3 rounded-pill fw-bold">На главную</a>
-                            <a href="/services/" class="btn btn-outline-gold px-5 py-3 rounded-pill fw-bold">Записаться снова</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
+{% block extra_head %}
 <style>
-    body {
-        background-color: #121212;
-        color: #E0E0E0;
-    }
+  /* Не даём фикс-кнопкам (если будут) перекрывать контент */
+  .bm-page-wrap { padding-top: 12px; }
 
-    .card {
-        background-color: #1E1E1E;
-        border-color: #333333;
-    }
+  /* Заголовок статуса */
+  .bm-status-hero {
+    border-radius: 18px 18px 0 0;
+    background: radial-gradient(1200px 600px at 50% -30%, rgba(255,215,0,0.14), transparent 55%),
+                linear-gradient(180deg, rgba(255,255,255,0.06), transparent);
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+  }
 
-    .text-gold {
-        color: #FFD700 !important;
-    }
+  .bm-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    font-weight: 800;
+    border-radius: 999px;
+    padding: .5rem 1.05rem;
+    border: 1px solid rgba(255,215,0,0.45);
+    background: rgba(255,215,0,0.12);
+    color: var(--gold);
+    font-size: 1rem;
+  }
 
-    .btn-outline-gold {
-        border-color: #FFD700;
-        color: #FFD700;
-        background-color: transparent;
-        transition: all 0.25s ease;
-    }
+  /* Карточки внутри */
+  .bm-detail-box {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 16px;
+    padding: 16px;
+  }
 
-    .btn-outline-gold:hover,
-    .btn-outline-gold:focus {
-        background-color: #FFD700;
-        color: #000000 !important;
-        border-color: #FFD700;
-    }
+  .bm-label {
+    font-size: .78rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
 
-    .btn-gold {
-        background-color: #FFD700;
-        color: #000000;
-        border: none;
-    }
+  /* Услуги */
+  .bm-service-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .bm-service-row:last-child {
+    border-bottom: none;
+  }
 
-    .form-control {
-        background-color: #2A2A2A;
-        border-color: #444444;
-        color: #E0E0E0;
-    }
+  .bm-total-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding-top: 14px;
+    margin-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.10);
+    font-weight: 800;
+  }
 
-    .form-control::placeholder {
-        color: #A0A0A0 !important;
-        opacity: 1;
-    }
+  /* Оценка */
+  .bm-stars-wrap {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: nowrap;
+  }
+  .bm-star-btn {
+    width: 58px;
+    height: 58px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .bm-star-btn span {
+    line-height: 1;
+    font-size: 2rem;
+  }
 
-    .form-control:focus {
-        background-color: #2A2A2A;
-        border-color: #FFD700;
-        box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.25);
-        color: #E0E0E0;
-    }
+  @media (max-width: 576px) {
+    .bm-star-btn { width: 50px; height: 50px; }
+    .bm-star-btn span { font-size: 1.75rem; }
+  }
 
-    .text-muted {
-        color: #A0A0A0 !important;
+  /* Кнопки: только в пределах этой страницы */
+  .bm-actions .btn {
+    width: 100%;
+  }
+  @media (min-width: 768px) {
+    .bm-actions .btn {
+      width: auto;
+      min-width: 220px;
     }
-
-    hr {
-        border-color: #444444;
-    }
-
-    /* Звёздочки — всегда круглые и компактные */
-    .star-btn {
-        width: 60px;
-        height: 60px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-    }
-
-    .star-btn .fs-3 {
-        line-height: 1;
-        margin: 0;
-    }
-
-    @media (max-width: 576px) {
-        .star-btn {
-            width: 52px;
-            height: 52px;
-        }
-        .star-btn .fs-3 {
-            font-size: 2.1rem;
-        }
-    }
-
-    @media (max-width: 768px) {
-        .btn {
-            width: 100%;
-            margin-bottom: 1rem;
-        }
-        .display-5 {
-            font-size: 2.5rem;
-        }
-    }
+  }
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-5 bm-page-wrap">
+  <div class="row justify-content-center">
+    <div class="col-lg-9 col-xxl-8">
+
+      <div class="bm-card p-0 overflow-hidden">
+
+        <!-- Header -->
+        <div class="bm-status-hero p-4 p-md-5 text-center">
+          <h1 class="display-6 fw-bold text-gold mb-2">
+            {% if appointment.status == 'cancelled' %}
+              Запись отменена
+            {% elif appointment.status == 'completed' %}
+              Услуга выполнена
+            {% elif appointment.status == 'confirmed' %}
+              Запись подтверждена
+            {% else %}
+              Запись успешно создана
+            {% endif %}
+          </h1>
+
+          <div class="mt-3">
+            <span class="bm-status-badge">
+              {{ appointment.get_status_display }}
+            </span>
+          </div>
+
+          <div class="text-muted mt-3">
+            Детали записи №{{ appointment.id }}
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div class="p-4 p-md-5">
+
+          <div class="row g-4 mb-4">
+            <div class="col-md-6">
+              <div class="bm-detail-box h-100">
+                <div class="bm-label">Мастер</div>
+                <div class="fs-4 fw-semibold text-light">{{ appointment.master.full_name }}</div>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="bm-detail-box h-100">
+                <div class="bm-label">Дата и время</div>
+                <div class="fs-4 fw-semibold text-light">
+                  {{ appointment.date|date:"d E Y" }} в {{ appointment.time|time:"H:i" }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Услуги -->
+          <div class="bm-detail-box mb-4">
+            <div class="bm-label mb-3">Услуги</div>
+
+            {% for service in appointment.service.all %}
+              <div class="bm-service-row">
+                <div class="text-light fw-semibold">{{ service.name }}</div>
+                <div class="text-gold fw-bold">{{ service.price }} ₸</div>
+              </div>
+            {% endfor %}
+
+            <div class="bm-total-row">
+              <div class="text-light">Итого</div>
+              <div class="text-gold fs-4">{{ appointment.total_price }} ₸</div>
+            </div>
+
+            {% if appointment.prepayment_amount and appointment.prepayment_amount|floatformat:0 != "0" %}
+              <div class="mt-3">
+                <div class="d-flex justify-content-between">
+                  <div class="text-muted">Предоплата</div>
+                  <div class="text-gold fw-bold">{{ appointment.prepayment_amount }} ₸</div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-2">
+                  <div class="text-muted">Способ</div>
+                  <div class="text-muted">{{ appointment.prepayment_method|default:"(не указан)" }}</div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-3 pt-3 border-top border-secondary">
+                  <div class="text-light fw-bold">Осталось оплатить</div>
+                  <div class="text-gold fw-bold fs-5">{{ remaining_amount }} ₸</div>
+                </div>
+
+                <div class="text-muted small mt-2">
+                  Предоплата — имитация (не реальная оплата).
+                </div>
+              </div>
+            {% else %}
+              <div class="d-flex justify-content-between mt-3 pt-3 border-top border-secondary">
+                <div class="text-muted">Оплата</div>
+                <div class="text-muted">{{ appointment.prepayment_method|default:"На месте (не указан способ)" }}</div>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Клиент -->
+          <div class="bm-detail-box mb-4">
+            <div class="bm-label">Клиент</div>
+            <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+              <div>
+                <div class="fs-5 fw-semibold text-light mb-1">{{ appointment.client_name }}</div>
+                <a href="tel:{{ appointment.client_phone }}" class="text-gold text-decoration-none fs-5 fw-bold">
+                  {{ appointment.client_phone }}
+                </a>
+                {% if appointment.client_email %}
+                  <div class="text-muted small mt-2">{{ appointment.client_email }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Отзыв -->
+          {% if appointment.status != 'cancelled' %}
+            {% if not appointment.review %}
+              <div class="border-top border-secondary pt-4 mt-4">
+                <h4 class="text-center mb-4 text-gold fw-bold">
+                  Оцените мастера {{ appointment.master.full_name }}
+                </h4>
+
+                <form method="post" action="{% url 'add_review' appointment.id %}">
+                  {% csrf_token %}
+
+                  <div class="bm-stars-wrap mb-4">
+                    {% for i in "12345" %}
+                      <button type="button"
+                              class="btn btn-outline-gold bm-star-btn star-btn"
+                              data-value="{{ i }}">
+                        <span>★</span>
+                      </button>
+                    {% endfor %}
+                  </div>
+
+                  <input type="hidden" name="rating" id="ratingInput" required>
+
+                  <textarea name="comment"
+                            class="form-control bm-input mb-4"
+                            rows="3"
+                            placeholder="Ваш отзыв (необязательно)"></textarea>
+
+                  <div class="text-center">
+                    <button type="submit"
+                            class="btn btn-outline-gold px-5 py-3 rounded-pill fw-bold">
+                      Отправить отзыв
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <script>
+                const starButtons = document.querySelectorAll('.star-btn');
+                const ratingInput = document.getElementById('ratingInput');
+
+                starButtons.forEach(btn => {
+                  btn.addEventListener('click', () => {
+                    const value = btn.dataset.value;
+                    ratingInput.value = value;
+
+                    starButtons.forEach(b => {
+                      if (parseInt(b.dataset.value) <= parseInt(value)) {
+                        b.classList.remove('btn-outline-gold');
+                        b.classList.add('btn-gold');
+                      } else {
+                        b.classList.remove('btn-gold');
+                        b.classList.add('btn-outline-gold');
+                      }
+                    });
+                  });
+                });
+              </script>
+
+            {% else %}
+              <div class="border-top border-secondary pt-4 mt-4 text-center">
+                <h4 class="fw-bold mb-3 text-gold">Спасибо за отзыв</h4>
+                <div class="d-flex justify-content-center gap-2 mb-3">
+                  {% for i in "12345" %}
+                    <span class="fs-2 {% if forloop.counter <= appointment.review.rating %}text-gold{% else %}text-muted{% endif %}">★</span>
+                  {% endfor %}
+                </div>
+                {% if appointment.review.comment %}
+                  <p class="text-light fs-5"><em>"{{ appointment.review.comment }}"</em></p>
+                {% endif %}
+              </div>
+            {% endif %}
+          {% endif %}
+
+          <!-- Кнопки действий -->
+          <div class="bm-actions text-center mt-5 pt-4 border-top border-secondary">
+            {% if appointment.status == 'new' or appointment.status == 'confirmed' %}
+              <div class="mb-4">
+                <p class="text-muted small mb-3">Отменить можно не позднее чем за 2 часа до начала</p>
+                <a href="{% url 'cancel_appointment' appointment.id %}"
+                   class="btn btn-outline-danger px-5 py-3 rounded-pill fw-bold"
+                   onclick="return confirm('Точно отменить запись?')">
+                  Отменить запись
+                </a>
+              </div>
+            {% elif appointment.status == 'cancelled' %}
+              <p class="text-danger fw-semibold fs-5 mb-4">Запись отменена</p>
+            {% endif %}
+
+            <div class="d-grid d-md-flex justify-content-md-center gap-3 flex-wrap">
+              {% if appointment.status != 'cancelled' %}
+                <a href="{% url 'generate_invoice_pdf' appointment.id %}"
+                   class="btn btn-outline-gold px-5 py-3 rounded-pill fw-bold"
+                   target="_blank">
+                  Скачать счёт
+                </a>
+              {% endif %}
+
+              <a href="/" class="btn btn-outline-gold px-5 py-3 rounded-pill fw-bold">На главную</a>
+              <a href="/services/" class="btn btn-outline-gold px-5 py-3 rounded-pill fw-bold">Записаться снова</a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
 {% endblock %}

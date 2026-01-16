@@ -1,73 +1,83 @@
 {% extends 'base.html' %}
 {% block content %}
 
+<!-- Заголовок -->
 <section class="py-5 text-center border-bottom border-secondary">
   <div class="container" data-aos="fade-down">
-    <h1 class="display-6 fw-bold text-gold mb-2">Профиль</h1>
-    <p class="text-muted mb-0">Обновите имя и email</p>
+    <h1 class="display-5 fw-bold text-gold mb-2">Профиль</h1>
+    <p class="lead text-muted mb-0">Обновите имя и email</p>
   </div>
 </section>
 
+<!-- Контент -->
 <section class="py-5">
   <div class="container">
     <div class="row justify-content-center">
-      <div class="col-lg-6">
+      <div class="col-md-7 col-lg-6">
 
         {% if messages %}
           <div class="mb-4">
             {% for message in messages %}
-              <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} text-center">
+              <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} text-center mb-2">
                 {{ message }}
               </div>
             {% endfor %}
           </div>
         {% endif %}
 
-        <div class="card bg-dark border-0 shadow-lg">
+        <div class="card bg-dark border-0 shadow-lg overflow-hidden">
           <div class="card-body p-4 p-md-5">
+
+            <div class="text-center mb-4">
+              <h3 class="text-gold fw-bold mb-1">Данные аккаунта</h3>
+              <p class="text-muted mb-0">Телефон изменить нельзя</p>
+            </div>
 
             <form method="post" novalidate>
               {% csrf_token %}
 
-              <div class="mb-3">
-                <label class="fw-bold text-muted">Телефон (нельзя изменить)</label>
+              <div class="mb-4">
+                <label class="fw-bold text-muted mb-2 d-block">Телефон</label>
                 <input type="text"
-                       class="form-control bg-dark text-light border-gold"
+                       class="form-control form-control-lg bg-dark text-light border-gold"
                        value="{{ client.phone }}"
                        readonly>
-                <div class="form-text text-secondary">
+                <div class="form-text text-muted mt-2">
                   Телефон привязан к вашим записям. Изменение сделаем отдельной функцией.
                 </div>
               </div>
 
-              <div class="mb-3">
-                <label class="fw-bold text-muted">Имя</label>
+              <div class="mb-4">
+                <label class="fw-bold text-muted mb-2 d-block">Имя</label>
                 {{ form.first_name }}
                 {% if form.first_name.errors %}
-                  <div class="text-danger small mt-1">{{ form.first_name.errors }}</div>
+                  <div class="text-danger small mt-2">{{ form.first_name.errors }}</div>
                 {% endif %}
               </div>
 
               <div class="mb-4">
-                <label class="fw-bold text-muted">Email</label>
+                <label class="fw-bold text-muted mb-2 d-block">Email</label>
                 {{ form.email }}
                 {% if form.email.errors %}
-                  <div class="text-danger small mt-1">{{ form.email.errors }}</div>
+                  <div class="text-danger small mt-2">{{ form.email.errors }}</div>
                 {% endif %}
               </div>
 
-              <div class="d-grid gap-2">
-                <button type="submit" class="btn btn-gold btn-lg fw-bold rounded-pill">
+              <div class="d-grid gap-2 mt-4">
+                <button type="submit" class="btn btn-gold btn-lg fw-bold rounded-pill shadow-lg">
                   Сохранить
                 </button>
-                <a href="{% url 'cabinet_dashboard' %}" class="btn btn-outline-gold btn-lg rounded-pill">
-                  ← Назад к записям
+                <a href="{% url 'cabinet_dashboard' %}" class="btn btn-outline-gold btn-lg fw-bold rounded-pill">
+                  Назад к записям
                 </a>
               </div>
-
             </form>
 
           </div>
+        </div>
+
+        <div class="text-center text-muted small mt-3">
+          Изменения сохраняются сразу после нажатия “Сохранить”.
         </div>
 
       </div>
@@ -76,7 +86,10 @@
 </section>
 
 <style>
-  .border-gold { border-color: #FFD700 !important; }
+  /* на всякий: чтобы поля из формы выглядели одинаково крупными */
+  .form-control { background-color: #2A2A2A !important; }
+  .form-control:focus { border-color: #FFD700 !important; box-shadow: 0 0 0 .25rem rgba(255,215,0,.25); }
+  .form-control::placeholder { color: #A0A0A0 !important; opacity: 1; }
 </style>
 
 {% endblock %}

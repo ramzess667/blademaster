@@ -1,154 +1,268 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+<style>
+  /* Карточка фикс высоты (не растёт) */
+  .bm-master-card {
+    height: 560px;
+    position: relative;
+  }
+  @media (max-width: 768px) {
+    .bm-master-card { height: 540px; }
+  }
+
+  /* Круглый аватар */
+  .bm-avatar-wrap {
+    width: 140px;
+    height: 140px;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 2px solid rgba(255,215,0,0.45);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+    margin: 0 auto;
+    background: #111;
+  }
+  .bm-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 25%;
+    display: block;
+  }
+  @media (max-width: 768px) {
+    .bm-avatar-wrap { width: 120px; height: 120px; }
+  }
+
+  /* Звёзды */
+  .bm-stars {
+    font-size: 1.35rem;
+    letter-spacing: 1px;
+    line-height: 1;
+  }
+
+  /* Flip (по клику) */
+  .bm-flip {
+    perspective: 1400px;
+    height: 100%;
+  }
+  .bm-flip-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform .6s ease;
+  }
+  .bm-flip.is-flipped .bm-flip-inner {
+    transform: rotateY(180deg);
+  }
+
+  .bm-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem;
+  }
+
+  .bm-back {
+    transform: rotateY(180deg);
+  }
+
+  /* Кнопки */
+  .bm-toggle-btn {
+    border: 1px solid rgba(255,215,0,0.55);
+    color: rgba(255,215,0,0.95);
+    background: transparent;
+    border-radius: 999px;
+    padding: .5rem 1rem;
+    font-weight: 800;
+    transition: all .2s ease;
+    width: 100%;
+  }
+  .bm-toggle-btn:hover {
+    background: var(--gold);
+    color: #000;
+    border-color: var(--gold);
+  }
+
+  /* Бейдж */
+  .bm-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    font-size: .78rem;
+    font-weight: 800;
+    padding: .25rem .65rem;
+    border-radius: 999px;
+    background: rgba(255,215,0,0.12);
+    border: 1px solid rgba(255,215,0,0.35);
+    color: var(--gold);
+  }
+
+  /* Скролл внутри отзывов (чтобы карточка не росла) */
+  .bm-reviews-scroll {
+    overflow: auto;
+    padding-right: 6px;
+    max-height: 260px;
+  }
+  .bm-reviews-scroll::-webkit-scrollbar { width: 6px; }
+  .bm-reviews-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255,215,0,0.25);
+    border-radius: 10px;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 
-<!-- Заголовок страницы -->
-<section class="py-5 text-center border-bottom border-secondary">
-    <div class="container" data-aos="fade-down">
-        <h1 class="display-5 fw-bold text-gold mb-3">Наши мастера</h1>
-        <p class="lead text-muted">Профессионалы, которые создают ваш стиль</p>
-    </div>
+<section class="bm-page-title">
+  <div class="container" data-aos="fade-down">
+    <h1 class="display-5 fw-bold text-gold mb-3">Наши мастера</h1>
+    <p class="lead text-muted">Профессионалы, которые создают ваш стиль</p>
+  </div>
 </section>
 
-<section class="py-5">
-    <div class="container">
-        <div class="row g-4 g-md-5 justify-content-center">
-            {% for master in masters %}
-            <div class="col-12 col-sm-10 col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="{% cycle '100' '200' '300' '100' %}">
-                <div class="master-card bg-dark border border-secondary rounded-4 overflow-hidden shadow-lg mx-auto" style="max-width: 380px;">
-                    <!-- Фото (всегда видно) -->
-                    <div class="position-relative">
-                        {% if master.photo %}
-                        <img src="{{ master.photo.url }}" class="w-100 object-fit-cover" style="height: 320px;" alt="{{ master.full_name }}" loading="lazy">
-                        {% else %}
-                        <img src="https://via.placeholder.com/380x320/1E1E1E/FFD700?text={{ master.full_name }}" class="w-100 object-fit-cover" style="height: 320px;" alt="{{ master.full_name }}">
-                        {% endif %}
-                        
-                        <!-- Золотой оверлей (только фон, без текста на hover) -->
-                        <div class="position-absolute top-0 start-0 w-100 h-100 bg-gold bg-opacity-15 opacity-0 hover-opacity transition-opacity"></div>
-                    </div>
+<section class="bm-section">
+  <div class="container">
+    <div class="row g-4 g-md-5 justify-content-center">
 
-                    <!-- Основной контент (всегда видно на мобильных, flip на ПК) -->
-                    <div class="p-4 text-center d-flex flex-column">
-                        <h5 class="fw-bold fs-4 text-gold mb-2">{{ master.full_name }}</h5>
-                        
-                        <!-- Рейтинг -->
-                        {% if master.reviews_count > 0 %}
-                        <div class="mb-3">
-                            <span class="fs-4 text-gold">
-                                {% for i in "12345" %}
-                                <span class="{% if forloop.counter <= master.average_rating|floatformat:0 %}text-gold{% else %}text-muted{% endif %}">★</span>
-                                {% endfor %}
-                            </span>
-                            <span class="text-muted ms-2">({{ master.average_rating|floatformat:1 }})</span>
-                            <span class="text-muted small ms-1">· {{ master.reviews_count }} {{ master.reviews_count|pluralize:"отзыв,отзыва,отзывов" }}</span>
-                        </div>
-                        {% else %}
-                        <p class="text-muted mb-3">Пока нет отзывов</p>
-                        {% endif %}
+      {% for master in masters %}
+      <div class="col-12 col-sm-10 col-md-6 col-lg-4"
+           data-aos="fade-up"
+           data-aos-delay="{% cycle '100' '200' '300' '100' %}">
 
-                        <!-- Описание и отзывы (на ПК — flip, на мобильных — всегда видно) -->
-                        <div class="flip-back">
-                            <p class="text-muted mb-4">{{ master.description|default:"Опытный мастер с индивидуальным подходом" }}</p>
+        <div class="bm-card bm-card-hover bm-master-card mx-auto" style="max-width: 380px;">
+          <div class="bm-flip" id="flip-{{ master.id }}">
+            <div class="bm-flip-inner">
 
-                            {% if master.reviews_count > 0 %}
-                            <div class="mb-4">
-                                <h6 class="text-gold small mb-2">Последние отзывы</h6>
-                                {% for review in master.get_reviews|slice:":2" %}
-                                <div class="small border-top border-secondary pt-2 mb-2">
-                                    <span class="text-gold">{{ review.rating }} ★</span>
-                                    {% if review.comment %}
-                                    <p class="mb-1 text-light"><em>"{{ review.comment|truncatewords:12 }}"</em></p>
-                                    {% endif %}
-                                </div>
-                                {% endfor %}
-                            </div>
-                            {% endif %}
-                        </div>
+              <!-- FRONT -->
+              <div class="bm-face bm-front text-center">
 
-                        <!-- Кнопка -->
-                        <a href="{% url 'book_select_master' %}?master={{ master.id }}" 
-                           class="btn btn-outline-gold btn-lg w-100 rounded-pill fw-bold mt-3">
-                            Записаться к мастеру
-                        </a>
-                    </div>
+                <div class="bm-avatar-wrap mt-3 mb-3">
+                  {% if master.photo %}
+                    <img src="{{ master.photo.url }}" class="bm-avatar" alt="{{ master.full_name }}" loading="lazy">
+                  {% else %}
+                    <img src="https://via.placeholder.com/300x300/1E1E1E/FFD700?text={{ master.full_name }}"
+                         class="bm-avatar" alt="{{ master.full_name }}" loading="lazy">
+                  {% endif %}
                 </div>
+
+                <div class="d-flex justify-content-center align-items-center gap-2 mb-2">
+                  <h5 class="fw-bold fs-4 text-gold mb-0">{{ master.full_name }}</h5>
+                  {% if forloop.counter == 1 %}
+                    <span class="bm-badge">ТОП</span>
+                  {% endif %}
+                </div>
+
+                {% if master.reviews_count > 0 %}
+                  <div class="mb-3">
+                    <span class="bm-stars">
+                      {% for i in "12345" %}
+                        <span class="{% if forloop.counter <= master.average_rating|floatformat:0 %}text-gold{% else %}text-muted{% endif %}">★</span>
+                      {% endfor %}
+                    </span>
+                    <span class="text-muted ms-2">({{ master.average_rating|floatformat:1 }})</span>
+                    <div class="text-muted small mt-1">
+                      {{ master.reviews_count }} {{ master.reviews_count|pluralize:"отзыв,отзыва,отзывов" }}
+                    </div>
+                  </div>
+                {% else %}
+                  <p class="text-muted mb-3">Пока нет отзывов</p>
+                {% endif %}
+
+                <p class="text-muted mb-3">
+                  {{ master.description|default:"Опытный мастер с индивидуальным подходом"|truncatewords:18 }}
+                </p>
+
+                <a href="{% url 'book_select_master' %}?master={{ master.id }}"
+                   class="btn btn-outline-gold btn-lg w-100 rounded-pill fw-bold mt-auto">
+                  Записаться к мастеру
+                </a>
+
+                {% if master.reviews_count > 0 %}
+                  <button type="button"
+                          class="bm-toggle-btn mt-3"
+                          data-flip-open="{{ master.id }}">
+                    Отзывы
+                  </button>
+                {% endif %}
+
+              </div>
+
+              <!-- BACK -->
+              <div class="bm-face bm-back text-start">
+
+                <div class="text-center mt-2 mb-3">
+                  <div class="fw-bold text-gold fs-5 mb-1">Отзывы</div>
+                  <div class="text-muted small">
+                    Средняя оценка: <span class="text-gold fw-bold">{{ master.average_rating|floatformat:1 }}</span>
+                  </div>
+                </div>
+
+                <div class="bm-reviews-scroll">
+                  {% for review in master.get_reviews %}
+                    <div class="border-top border-secondary pt-2 mb-2">
+                      <div class="small">
+                        <span class="text-gold fw-bold">{{ review.rating }} ★</span>
+                      </div>
+                      {% if review.comment %}
+                        <div class="text-light small"><em>"{{ review.comment|truncatewords:18 }}"</em></div>
+                      {% else %}
+                        <div class="text-muted small"><em>Без комментария</em></div>
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
+
+                <button type="button"
+                        class="bm-toggle-btn mt-auto"
+                        data-flip-close="{{ master.id }}">
+                  Назад
+                </button>
+
+              </div>
+
             </div>
-            {% empty %}
-            <div class="col-12 text-center py-5">
-                <p class="text-muted fs-5">Мастера пока не добавлены</p>
-            </div>
-            {% endfor %}
+          </div>
         </div>
+
+      </div>
+      {% empty %}
+      <div class="col-12 text-center py-5">
+        <p class="text-muted fs-5">Мастера пока не добавлены</p>
+      </div>
+      {% endfor %}
+
     </div>
+  </div>
 </section>
 
-<style>
-    .master-card {
-        position: relative;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
+<script>
+  // Flip по клику (карточка не растёт)
+  function closeAllFlips() {
+    document.querySelectorAll('.bm-flip.is-flipped').forEach(el => el.classList.remove('is-flipped'));
+  }
 
-    /* Оверлей на hover (фон без текста) */
-    .position-absolute.bg-gold.bg-opacity-15 {
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
+  document.querySelectorAll('[data-flip-open]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-flip-open');
+      const flip = document.getElementById(`flip-${id}`);
+      if (!flip) return;
 
-    .master-card:hover .position-absolute.bg-gold.bg-opacity-15 {
-        opacity: 1;
-    }
+      closeAllFlips();
+      flip.classList.add('is-flipped');
+    });
+  });
 
-    /* Flip только на ПК (min-width: 992px) */
-    @media (min-width: 992px) {
-        .master-card {
-            perspective: 1500px;
-        }
-        .front-content .flip-back {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            transform: rotateY(180deg);
-            transition: transform 0.6s ease;
-            padding: 1rem;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        .master-card:hover .front-content .flip-back {
-            transform: rotateY(0deg);
-        }
-        .master-card:hover .front-content > *:not(.flip-back) {
-            transform: rotateY(180deg);
-        }
-        .master-card .front-content > *:not(.flip-back) {
-            transition: transform 0.6s ease;
-            backface-visibility: hidden;
-        }
-    }
-
-    /* На мобильных — нет flip, hover-подъём, оверлей не на фото */
-    @media (max-width: 991px) {
-        .master-card {
-            height: auto;
-        }
-        .flip-back {
-            position: relative !important;
-            transform: none !important;
-            padding: 0;
-            display: block !important;
-        }
-        .master-card:hover {
-            transform: translateY(-12px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5) !important;
-        }
-        .position-absolute.bg-gold.bg-opacity-15 {
-            display: none;  /* убрал оверлей на фото для мобильных */
-        }
-    }
-</style>
+  document.querySelectorAll('[data-flip-close]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-flip-close');
+      const flip = document.getElementById(`flip-${id}`);
+      if (!flip) return;
+      flip.classList.remove('is-flipped');
+    });
+  });
+</script>
 
 {% endblock %}

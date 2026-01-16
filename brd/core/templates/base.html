@@ -140,25 +140,28 @@
             border-color: var(--gold);
         }
 
+       /* Делаем btn-gold таким же стилем как outline (прозрачный премиум-вид) */
         .btn-gold {
-            background-color: var(--gold);
-            color: #000;
-            border: none;
+            background: transparent;
+            color: var(--gold);
+            border: 1px solid var(--gold);
         }
 
-        /* Карточки */
+        .btn-gold:hover,
+        .btn-gold:focus {
+            background: var(--gold);
+            color: #000 !important;
+            border-color: var(--gold);
+        }
+
+
+        /* Карточки (без глобального hover!) */
         .card {
             background-color: var(--bg-secondary);
             border: none;
             border-radius: 16px;
             overflow: hidden;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
         }
 
         /* Текст */
@@ -170,7 +173,7 @@
             color: var(--text-muted) !important;
         }
 
-        /* Футер (оставили почти как был, подогнали цвета) */
+        /* Футер */
         .footer {
             background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
             color: var(--gold);
@@ -191,38 +194,132 @@
 
         .logo-img {
             height: 60px;
-            /* большое лого на десктопе */
             width: auto;
             max-height: 70px;
             object-fit: contain;
-            /* не растягивается, сохраняет пропорции */
         }
 
-        /* На мобильных уменьшаем лого и скрываем текст */
         @media (max-width: 991px) {
             .navbar {
                 min-height: 60px;
-                /* меньше на мобильных */
                 padding-top: 0.5rem !important;
                 padding-bottom: 0.5rem !important;
             }
 
             .logo-img {
                 height: 50px;
-                /* поменьше на мобильных */
                 max-height: 55px;
             }
 
             .brand-text {
                 display: none !important;
-                /* текст скрыт на телефонах */
             }
         }
 
-        /* Если хочешь текст всё-таки оставить на мобильных — просто удали .brand-text { display: none; } */
-    </style>
-    {% block extra_head %}{% endblock %}
+        /* =========================
+           BladeMaster UI SYSTEM
+           ========================= */
 
+        /* Единый заголовок страницы */
+        .bm-page-title {
+            padding: 3rem 0;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .bm-page-title h1 {
+            font-weight: 800;
+            color: var(--gold);
+            margin-bottom: .75rem;
+        }
+
+        .bm-page-title p {
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        /* Единая секция */
+        .bm-section {
+            padding: 2.5rem 0;
+        }
+
+        /* Единая карточка */
+        .bm-card {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+            overflow: hidden;
+        }
+
+        /* Hover включаем только там где нужно */
+        .bm-card-hover {
+            transition: transform .25s ease, box-shadow .25s ease;
+        }
+
+        .bm-card-hover:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+        }
+
+        /* Единые input/select */
+        .bm-input,
+        .bm-select {
+            background-color: var(--bg-input) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid #444 !important;
+            border-radius: 14px;
+        }
+
+        /* Placeholder для тёмных инпутов */
+        .bm-input::placeholder,
+        .form-control.bm-input::placeholder {
+            color: rgba(224, 224, 224, 0.55);
+        }
+
+        .bm-input:-ms-input-placeholder { color: rgba(224, 224, 224, 0.55); }
+        .bm-input::-ms-input-placeholder { color: rgba(224, 224, 224, 0.55); }
+        
+        .bm-input:focus,
+        .bm-select:focus {
+            border-color: var(--gold) !important;
+            box-shadow: 0 0 0 .25rem rgba(255, 215, 0, 0.18) !important;
+        }
+
+        /* Кнопки-слоты/чипы */
+        .bm-chip {
+            min-width: 90px;
+            border-radius: 999px;
+            font-weight: 700;
+            transition: all .2s ease;
+        }
+
+        .bm-chip.btn-gold {
+            background: var(--gold);
+            color: #000;
+            border: none;
+        }
+
+        /* Safe-area для fixed-bottom actionbar */
+        .bm-has-actionbar {
+            padding-bottom: 110px;
+        }
+
+        @media (max-width: 768px) {
+            .bm-page-title {
+                padding: 2.25rem 0;
+            }
+
+            .bm-section {
+                padding: 2rem 0;
+            }
+
+            .bm-chip {
+                width: 48%;
+            }
+        }
+    </style>
+
+    {% block extra_head %}{% endblock %}
 </head>
 
 <body class="d-flex flex-column min-vh-100">
@@ -230,7 +327,6 @@
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="/">
-                <!-- Лого большое, но не растягивает навбар -->
                 <img id="brandLogo" src="{% static 'images/logo.png' %}" alt="BladeMaster" class="logo-img me-2">
                 <span class="brand-text d-none d-lg-inline fs-3 fw-bold text-gold">BladeMaster</span>
             </a>
@@ -256,7 +352,6 @@
                     {% if user.is_staff %}
                     <li class="nav-item"><a class="nav-link" href="{% url 'admin_reports' %}">Отчёты</a></li>
                     {% endif %}
-
 
                     <li class="nav-item dropdown ms-2 ms-lg-4">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
@@ -316,24 +411,12 @@
 
         // Навбар при скролле
         window.addEventListener('scroll', () => {
-            document.querySelector('.navbar').classList.toggle('scrolled', window.scrollY > 80);
-        });
-        function openFullOffer() {
-            document.getElementById("offerShort").style.display = "none";
-            document.getElementById("offerFull").style.display = "block";
-        }
-
-        // когда модалка закрывается — возвращаем короткую версию
-        document.addEventListener('DOMContentLoaded', function () {
-            const modal = document.getElementById('offerModal');
-            modal.addEventListener('hidden.bs.modal', function () {
-                document.getElementById("offerShort").style.display = "block";
-                document.getElementById("offerFull").style.display = "none";
-            });
+            const nav = document.querySelector('.navbar');
+            if (nav) nav.classList.toggle('scrolled', window.scrollY > 80);
         });
     </script>
 
-    <!-- flatpickr (подключаем только когда нужен, но можно оставить глобально) -->
+    <!-- flatpickr -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
 

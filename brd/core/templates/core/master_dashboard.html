@@ -1,221 +1,378 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+<style>
+  .bm-kabinet-top{display:flex;flex-direction:column;gap:12px}
+  @media(min-width:768px){.bm-kabinet-top{flex-direction:row;justify-content:space-between;align-items:center}}
+
+  .bm-tabs{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  @media(min-width:768px){.bm-tabs{justify-content:flex-start}}
+
+  .bm-tab{
+    border:1px solid rgba(255,215,0,0.65);
+    color:var(--gold);
+    background:transparent;
+    border-radius:999px;
+    padding:.55rem 1rem;
+    font-weight:800;
+    transition:all .2s ease;
+    text-decoration:none;
+    display:inline-flex;
+    align-items:center;
+    gap:.45rem;
+  }
+  .bm-tab:hover, .bm-tab.is-active{background:var(--gold);color:#000}
+
+  .bm-stat-grid{display:grid;gap:12px}
+  @media(min-width:768px){.bm-stat-grid{grid-template-columns:repeat(3,1fr)}}
+
+  .bm-stat{
+    border:1px solid rgba(255,255,255,0.10);
+    border-radius:16px;
+    background:rgba(255,255,255,0.04);
+    padding:14px 16px;
+  }
+  .bm-stat .k{color:var(--text-muted);font-weight:700;font-size:.9rem;margin-bottom:6px}
+  .bm-stat .v{color:var(--gold);font-weight:900;font-size:1.35rem;line-height:1.1}
+  .bm-stat .s{color:var(--text-muted);font-size:.9rem;margin-top:6px}
+
+  .bm-date-card{overflow:hidden}
+  .bm-date-head{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:14px 18px;
+    border-bottom:1px solid rgba(255,255,255,0.10);
+    background:linear-gradient(180deg, rgba(255,255,255,0.05), transparent);
+  }
+  .bm-date-title{font-weight:900;color:var(--gold);margin:0}
+  .bm-date-sub{color:var(--text-muted);font-size:.9rem;margin-left:8px;font-weight:600}
+
+  .bm-chip{
+    display:inline-flex;align-items:center;border-radius:999px;
+    padding:.32rem .75rem;
+    border:1px solid rgba(255,215,0,0.45);
+    background:rgba(255,215,0,0.10);
+    color:var(--gold);
+    font-weight:800;
+    font-size:.9rem;
+    white-space:nowrap;
+  }
+
+  .bm-app-row{
+    padding:18px;
+    border-bottom:1px solid rgba(255,255,255,0.08);
+    transition:background .2s ease;
+  }
+  .bm-app-row:last-child{border-bottom:none}
+  .bm-app-row:hover{background:rgba(255,215,0,0.06)}
+
+  .bm-time{font-size:2rem;font-weight:900;color:var(--gold);line-height:1}
+
+  .bm-status-pill{
+    display:inline-flex;align-items:center;border-radius:999px;
+    padding:.25rem .65rem;
+    border:1px solid rgba(255,255,255,0.14);
+    background:rgba(255,255,255,0.05);
+    color:var(--text-muted);
+    font-weight:800;
+    font-size:.86rem;
+    white-space:nowrap;
+  }
+  .bm-status-pill.is-new{
+    border-color:rgba(255,215,0,0.35);
+    color:var(--gold);
+    background:rgba(255,215,0,0.08);
+  }
+  .bm-status-pill.is-cancelled{
+    border-color:rgba(220,53,69,0.35);
+    color:#ff9aa4;
+    background:rgba(220,53,69,0.08);
+  }
+  .bm-status-pill.is-completed{
+    border-color:rgba(25,135,84,0.40);
+    color:#7ad9a6;
+    background:rgba(25,135,84,0.10);
+  }
+
+  .bm-service-line{display:flex;justify-content:space-between;gap:12px;padding:4px 0}
+  .bm-total{
+    margin-top:8px;padding-top:10px;
+    border-top:1px solid rgba(255,255,255,0.10);
+    font-weight:900;color:var(--gold);
+  }
+
+  .bm-actions{display:grid;gap:10px}
+  @media(min-width:768px){.bm-actions{justify-items:end}}
+  .bm-actions .btn{width:100%}
+  @media(min-width:768px){.bm-actions .btn{width:auto;min-width:170px}}
+
+  .bm-copy-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 
-<!-- Заголовок + Выход -->
-<section class="py-5 border-bottom border-secondary">
-    <div class="container">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
-            <h1 class="display-5 fw-bold text-gold mb-0">Расписание мастера {{ master.full_name }}</h1>
-            <a href="{% url 'master_logout' %}" class="btn btn-outline-gold px-4 py-2 fw-bold rounded-pill">
-                Выйти
-            </a>
-        </div>
+<section class="bm-page-title">
+  <div class="container" data-aos="fade-down">
+
+    <div class="bm-kabinet-top">
+      <div>
+        <h1 class="display-6 fw-bold text-gold mb-1">Расписание мастера {{ master.full_name }}</h1>
+        <div class="text-muted">Управление записями</div>
+      </div>
+
+      <a href="{% url 'master_logout' %}" class="btn btn-outline-gold px-4 py-2 fw-bold rounded-pill">Выйти</a>
     </div>
+
+    <!-- Статистика -->
+    <div class="bm-stat-grid mt-4">
+      <div class="bm-stat">
+        <div class="k">Сегодня</div>
+        <div class="v">{{ stats.today_count }}</div>
+        <div class="s">Записей</div>
+      </div>
+      <div class="bm-stat">
+        <div class="k">Сегодня сумма</div>
+        <div class="v">{{ stats.today_revenue }} ₸</div>
+        <div class="s">Без отменённых</div>
+      </div>
+      <div class="bm-stat">
+        <div class="k">Новые</div>
+        <div class="v">{{ stats.new_count }}</div>
+        <div class="s">Требуют подтверждения</div>
+      </div>
+    </div>
+
+    {# Фильтры даты + статуса #}
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mt-4">
+
+      <div class="bm-tabs">
+        <a href="?filter=today{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if show_completed %}&show_completed=1{% endif %}"
+           class="bm-tab {% if request.GET.filter == 'today' %}is-active{% endif %}">
+          Сегодня
+        </a>
+        <a href="?filter=tomorrow{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if show_completed %}&show_completed=1{% endif %}"
+           class="bm-tab {% if request.GET.filter == 'tomorrow' %}is-active{% endif %}">
+          Завтра
+        </a>
+        <a href="?filter=all{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if show_completed %}&show_completed=1{% endif %}"
+           class="bm-tab {% if request.GET.filter == 'all' or not request.GET.filter %}is-active{% endif %}">
+          Все
+        </a>
+      </div>
+
+      <div class="bm-tabs">
+        {% with st=request.GET.status|default:"all" %}
+          <a href="?{% if request.GET.filter %}filter={{ request.GET.filter }}&{% endif %}status=new{% if show_completed %}&show_completed=1{% endif %}"
+             class="bm-tab {% if st == 'new' %}is-active{% endif %}">
+            Новые
+          </a>
+          <a href="?{% if request.GET.filter %}filter={{ request.GET.filter }}&{% endif %}status=confirmed{% if show_completed %}&show_completed=1{% endif %}"
+             class="bm-tab {% if st == 'confirmed' %}is-active{% endif %}">
+            Подтверждённые
+          </a>
+          <a href="?{% if request.GET.filter %}filter={{ request.GET.filter }}&{% endif %}status=all{% if show_completed %}&show_completed=1{% endif %}"
+             class="bm-tab {% if st == 'all' %}is-active{% endif %}">
+            Все статусы
+          </a>
+        {% endwith %}
+      </div>
+
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="showCompleted" {% if show_completed %}checked{% endif %}>
+        <label class="form-check-label text-muted fw-medium" for="showCompleted">
+          Показать завершённые и отменённые
+        </label>
+      </div>
+
+    </div>
+  </div>
 </section>
 
-<!-- Фильтр + чекбокс -->
-<section class="py-4">
-    <div class="container">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-4">
-            <!-- Фильтр по дате -->
-            <div class="btn-group flex-wrap justify-content-center gap-2" role="group">
-                <a href="?filter=today"
-                    class="btn btn-outline-gold px-4 py-2 fw-bold rounded-pill {% if request.GET.filter == 'today' %}active{% endif %}">
-                    Сегодня
-                </a>
-                <a href="?filter=tomorrow"
-                    class="btn btn-outline-gold px-4 py-2 fw-bold rounded-pill {% if request.GET.filter == 'tomorrow' %}active{% endif %}">
-                    Завтра
-                </a>
-                <a href="?filter=all"
-                    class="btn btn-outline-gold px-4 py-2 fw-bold rounded-pill {% if request.GET.filter == 'all' or not request.GET.filter %}active{% endif %}">
-                    Все
-                </a>
+<section class="bm-section pt-4">
+  <div class="container">
+
+    {% if appointments %}
+      {% regroup appointments by date as appointments_by_date %}
+
+      {% for date_group in appointments_by_date %}
+        <div class="bm-card bm-date-card mb-4">
+
+          <div class="bm-date-head">
+            <div class="d-flex align-items-baseline flex-wrap">
+              <h5 class="bm-date-title">{{ date_group.grouper|date:"d E Y" }}</h5>
+              <span class="bm-date-sub">
+                {% with c=date_group.list|length %}
+                  ({{ c }} {% if c == 1 %}запись{% else %}записей{% endif %})
+                {% endwith %}
+              </span>
             </div>
 
-            <!-- Чекбокс "Показать завершённые" -->
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="showCompleted" {% if show_completed %}checked{%endif %}>
-                <label class="form-check-label text-muted fw-medium" for="showCompleted">
-                    Показать завершённые и отменённые
-                </label>
+            <div class="d-flex gap-2 align-items-center">
+              {% if date_group.grouper == today %}
+                <span class="bm-chip">Сегодня</span>
+              {% elif date_group.grouper == tomorrow %}
+                <span class="bm-chip">Завтра</span>
+              {% endif %}
             </div>
-        </div>
-    </div>
-</section>
+          </div>
 
-<!-- Записи -->
-<section class="py-4 py-md-5">
-    <div class="container">
-        {% if appointments %}
-        {% regroup appointments by date as appointments_by_date %}
+          <div>
+            {% for app in date_group.list %}
+              <div class="bm-app-row">
+                <div class="row g-4 align-items-start">
 
-        {% for date_group in appointments_by_date %}
-        <div class="card mb-5 bg-dark border-0 shadow-lg rounded-4 overflow-hidden hover-lift">
-            <div class="card-header bg-dark text-gold py-3 px-4 d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 fw-bold">
-                    {{ date_group.grouper|date:"d E Y" }}
-                    <span class="text-muted ms-2 small">{% with c=date_group.list|length %}
-                        ({{ c }} {% if c == 1 %}запись{% else %}записей{% endif %})
-                        {% endwith %}
-                    </span>
-                </h5>
-                {% if date_group.grouper == today %}
-                <span class="text-gold small fw-bold">Сегодня</span>
-                {% elif date_group.grouper == tomorrow %}
-                <span class="text-gold small fw-bold">Завтра</span>
-                {% endif %}
-            </div>
+                  <div class="col-12 col-md-8">
+                    <div class="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-3">
+                      <div class="bm-time">{{ app.time|time:"H:i" }}</div>
 
-            <div class="card-body p-0">
-                {% for app in date_group.list %}
-                <div class="p-4 border-bottom border-secondary hover-bg transition-all">
-                    <div class="row align-items-center g-4">
-                        <!-- Левая часть -->
-                        <div class="col-12 col-md-8">
-                            <div class="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-3">
-                                <h3 class="mb-0 fw-bold text-gold">{{ app.time|time:"H:i" }}</h3>
-                                <span class="text-muted small">
-                                    {{ app.get_status_display }}
-                                    {% if app.status == 'new' %} · новое{% endif %}
-                                </span>
-                            </div>
-
-                            <p class="mb-2 text-light"><strong>Клиент:</strong> {{ app.client_name }}</p>
-                            <p class="mb-3 text-light">
-                                <strong>Телефон:</strong>
-                                <a href="tel:{{ app.client_phone }}" class="text-gold text-decoration-none fw-bold">{{app.client_phone }}</a>
-                            </p>
-
-                            <h6 class="text-gold mb-2">Услуги:</h6>
-                            <div class="ps-3 text-light">
-                                {% for service in app.service.all %}
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span>{{ service.name }}</span>
-                                    <span class="text-gold">{{ service.price }} ₸</span>
-                                </div>
-                                {% endfor %}
-                                <div class="border-top border-secondary pt-2 mt-2 fw-bold text-gold">
-                                    Итого: {{ app.total_price }} ₸
-                                </div>
-                                {% if app.prepayment_amount and app.prepayment_amount|floatformat:0 != "0" %}
-                                <div class="mt-2">
-                                    <span class="badge bg-warning text-dark">
-                                        Предоплата: {{ app.prepayment_amount }} ₸
-                                    </span>
-                                    {% if app.prepayment_paid %}
-                                    <span class="badge bg-success ms-2">Оплачено (имитация)</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary ms-2">Не оплачено</span>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-
-                            </div>
-                        </div>
-
-                        <!-- Правая часть: кнопки -->
-                        <div class="col-12 col-md-4 d-flex flex-column gap-2 align-items-md-end">
-                            {% if app.status == 'new' %}
-                            <a href="{% url 'master_change_status' app.id 'confirmed' %}"
-                                class="btn btn-outline-gold btn-md rounded-pill fw-bold w-100 w-md-auto">
-                                Подтвердить
-                            </a>
-                            {% endif %}
-                            {% if app.status in 'new,confirmed' %}
-                            <a href="{% url 'master_change_status' app.id 'completed' %}"
-                                class="btn btn-outline-gold btn-md rounded-pill fw-bold w-100 w-md-auto">
-                                Выполнена
-                            </a>
-                            <a href="{% url 'master_change_status' app.id 'no_show' %}"
-                                class="btn btn-outline-gold btn-md rounded-pill fw-bold w-100 w-md-auto">
-                                Не пришёл
-                            </a>
-                            {% endif %}
-                        </div>
+                      <div class="d-flex flex-wrap gap-2 align-items-center">
+                        {% if app.status == 'new' %}
+                          <span class="bm-status-pill is-new">Новая</span>
+                        {% elif app.status == 'cancelled' %}
+                          <span class="bm-status-pill is-cancelled">{{ app.get_status_display }}</span>
+                        {% elif app.status == 'completed' %}
+                          <span class="bm-status-pill is-completed">{{ app.get_status_display }}</span>
+                        {% else %}
+                          <span class="bm-status-pill">{{ app.get_status_display }}</span>
+                        {% endif %}
+                      </div>
                     </div>
+
+                    <div class="text-light mb-2">
+                      <span class="text-muted">Клиент:</span>
+                      <span class="fw-bold">{{ app.client_name }}</span>
+                    </div>
+
+                    <div class="bm-copy-row text-light mb-3">
+                      <div>
+                        <span class="text-muted">Телефон:</span>
+                        <a href="tel:{{ app.client_phone }}" class="text-gold text-decoration-none fw-bold">
+                          {{ app.client_phone }}
+                        </a>
+                      </div>
+
+                      <button type="button"
+                              class="btn btn-outline-gold rounded-pill fw-bold"
+                              data-copy="{{ app.client_phone }}">
+                        Скопировать телефон
+                      </button>
+
+                      <span class="text-muted small d-none" data-copy-ok>Скопировано</span>
+                    </div>
+
+                    <div class="bm-detail-box">
+                      <div class="text-gold fw-bold mb-2">Услуги</div>
+
+                      {% for service in app.service.all %}
+                        <div class="bm-service-line">
+                          <span class="text-light">{{ service.name }}</span>
+                          <span class="text-gold fw-bold">{{ service.price }} ₸</span>
+                        </div>
+                      {% endfor %}
+
+                      <div class="bm-total d-flex justify-content-between">
+                        <span>Итого</span>
+                        <span>{{ app.total_price }} ₸</span>
+                      </div>
+
+                      {% if app.prepayment_amount and app.prepayment_amount|floatformat:0 != "0" %}
+                        <div class="mt-3 d-flex flex-wrap gap-2">
+                          <span class="bm-status-pill is-new">Предоплата: {{ app.prepayment_amount }} ₸</span>
+                          {% if app.prepayment_paid %}
+                            <span class="bm-status-pill is-completed">Оплачено (имитация)</span>
+                          {% else %}
+                            <span class="bm-status-pill">Не оплачено</span>
+                          {% endif %}
+                        </div>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-4">
+                    <div class="bm-actions">
+
+                      {% if app.status == 'new' %}
+                        <a href="{% url 'master_change_status' app.id 'confirmed' %}"
+                           class="btn btn-outline-gold rounded-pill fw-bold">
+                          Подтвердить
+                        </a>
+                      {% endif %}
+
+                      {% if app.status == 'new' or app.status == 'confirmed' %}
+                        <a href="{% url 'master_change_status' app.id 'completed' %}"
+                           class="btn btn-outline-gold rounded-pill fw-bold">
+                          Выполнена
+                        </a>
+                        <a href="{% url 'master_change_status' app.id 'no_show' %}"
+                           class="btn btn-outline-gold rounded-pill fw-bold">
+                          Не пришёл
+                        </a>
+                      {% endif %}
+
+                    </div>
+                  </div>
+
                 </div>
-                {% endfor %}
-            </div>
+              </div>
+            {% endfor %}
+          </div>
+
         </div>
-        {% endfor %}
-        {% else %}
-        <div class="text-center py-5">
-            <h3 class="text-muted fs-3">Записей пока нет</h3>
-            <p class="text-muted">Новые записи появятся здесь автоматически</p>
-        </div>
-        {% endif %}
-    </div>
+      {% endfor %}
+
+    {% else %}
+      <div class="text-center py-5">
+        <h3 class="text-muted mb-2">Записей пока нет</h3>
+        <p class="text-muted">Новые записи появятся здесь автоматически</p>
+      </div>
+    {% endif %}
+
+  </div>
 </section>
 
-<!-- JS для чекбокса -->
 <script>
-    document.getElementById('showCompleted').addEventListener('change', function () {
-        const url = new URL(window.location);
-        if (this.checked) {
-            url.searchParams.set('show_completed', '1');
-        } else {
-            url.searchParams.delete('show_completed');
+  // show_completed
+  document.getElementById('showCompleted').addEventListener('change', function () {
+    const url = new URL(window.location);
+    if (this.checked) url.searchParams.set('show_completed', '1');
+    else url.searchParams.delete('show_completed');
+    window.location = url;
+  });
+
+  // copy phone
+  document.querySelectorAll('[data-copy]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const phone = btn.getAttribute('data-copy');
+      try {
+        await navigator.clipboard.writeText(phone);
+
+        const ok = btn.parentElement.querySelector('[data-copy-ok]');
+        if (ok) {
+          ok.classList.remove('d-none');
+          setTimeout(() => ok.classList.add('d-none'), 1200);
         }
-        window.location = url;
+      } catch (e) {
+        // fallback
+        const inp = document.createElement('input');
+        inp.value = phone;
+        document.body.appendChild(inp);
+        inp.select();
+        document.execCommand('copy');
+        document.body.removeChild(inp);
+
+        const ok = btn.parentElement.querySelector('[data-copy-ok]');
+        if (ok) {
+          ok.classList.remove('d-none');
+          setTimeout(() => ok.classList.add('d-none'), 1200);
+        }
+      }
     });
+  });
 </script>
-
-<style>
-    .hover-lift {
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .hover-lift:hover {
-        transform: translateY(-6px);
-        box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4) !important;
-    }
-
-    .hover-bg:hover {
-        background-color: rgba(255, 215, 0, 0.08) !important;
-    }
-
-    .btn-outline-gold {
-        border-color: #FFD700;
-        color: #FFD700;
-        transition: all 0.25s ease;
-    }
-
-    .btn-outline-gold:hover,
-    .btn-outline-gold.active {
-        background-color: #FFD700;
-        color: #000;
-    }
-
-    .btn-md {
-        min-width: 140px;
-    }
-
-    @media (max-width: 768px) {
-        .btn-group {
-            flex-direction: column;
-            width: 100%;
-        }
-
-        .btn-outline-gold {
-            width: 100%;
-            margin-bottom: 0.5rem;
-        }
-
-        .btn {
-            width: 100%;
-        }
-
-        .row.align-items-center {
-            flex-direction: column;
-            align-items: flex-start !important;
-        }
-
-        .align-items-md-end {
-            align-items: stretch !important;
-        }
-    }
-</style>
 
 {% endblock %}

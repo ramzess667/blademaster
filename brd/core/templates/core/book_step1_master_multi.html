@@ -1,169 +1,318 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+<style>
+  /* Чтобы fixed-bottom не перекрывал контент */
+  .bm-has-actionbar { padding-bottom: 110px; }
+
+  /* Прогресс */
+  .bm-progress {
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.10);
+    overflow: hidden;
+  }
+  .bm-progress > div {
+    height: 100%;
+    width: 66%;
+    background: linear-gradient(90deg, rgba(255,215,0,0.95), rgba(212,175,55,0.85));
+  }
+
+  /* Карточка мастера */
+  .bm-master-card {
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+    position: relative;
+  }
+  .bm-master-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+  }
+
+  /* Выбранный мастер */
+  .bm-master-card.selected {
+    border-color: rgba(255,215,0,0.70) !important;
+    box-shadow: 0 18px 46px rgba(255,215,0,0.10), 0 18px 46px rgba(0,0,0,0.55);
+    background: rgba(255,215,0,0.04);
+  }
+
+  /* Круглый аватар */
+  .bm-avatar-wrap {
+    width: 120px;
+    height: 120px;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 3px solid rgba(255,215,0,0.75);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+    margin: 0 auto;
+    background: #111;
+  }
+  .bm-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 25%;
+    display: block;
+  }
+
+  /* Звёзды */
+  .bm-stars {
+    font-size: 1.25rem;
+    letter-spacing: 1px;
+    line-height: 1;
+  }
+
+  /* Радио делаем “скрытым”, выбор идёт по клику по карточке */
+  .bm-radio {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Пилюли сводки */
+  .bm-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .35rem .75rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,215,0,0.45);
+    background: rgba(255,215,0,0.08);
+    color: var(--gold);
+    font-weight: 800;
+    font-size: .95rem;
+  }
+
+  /* Список услуг */
+  .bm-summary-list .list-group-item {
+    background: transparent !important;
+    border-color: rgba(255,255,255,0.10) !important;
+    color: var(--text-primary) !important;
+  }
+
+  /* Текст "выбран" */
+  .bm-selected-tag {
+    display: none;
+    margin-top: .75rem;
+    font-weight: 800;
+    color: var(--gold);
+  }
+  .bm-master-card.selected .bm-selected-tag {
+    display: block;
+  }
+
+  /* На мобилке аватар чуть меньше */
+  @media (max-width: 768px) {
+    .bm-avatar-wrap { width: 110px; height: 110px; }
+  }
+
+  .fixed-bottom { z-index: 1000; }
+</style>
+{% endblock %}
+
 {% block content %}
 
-<!-- Заголовок страницы -->
-<section class="py-5 text-center border-bottom border-secondary">
+<div class="bm-has-actionbar">
+
+  <!-- Заголовок -->
+  <section class="bm-page-title">
     <div class="container" data-aos="fade-down">
-        <h1 class="display-5 fw-bold text-gold mb-3">Выбранные услуги</h1>
-        <p class="lead text-muted">Выберите мастера для вашей записи</p>
-    </div>
-</section>
-
-<!-- Сводка выбранных услуг (компактно) -->
-<section class="py-4 bg-secondary bg-opacity-10">
-    <div class="container" data-aos="fade-up">
-        <div class="card bg-dark border-0 shadow-lg mx-auto" style="max-width: 700px;">
-            <div class="card-body p-3 p-md-5">
-                <h4 class="text-gold fw-bold mb-3 text-center">Ваши услуги</h4>
-                <ul class="list-group list-group-flush mb-3">
-                    {% for service in services %}
-                    <li class="list-group-item bg-transparent border-secondary text-light d-flex justify-content-between align-items-center">
-                        <span>{{ service.name }}</span>
-                        <span class="text-gold">{{ service.price }} ₸ ({{ service.duration }} мин)</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-                <div class="d-flex justify-content-between fw-bold fs-5">
-                    <span class="text-gold">Итого:</span>
-                    <span class="text-gold">{{ total_price }} ₸</span>
-                </div>
-                <div class="d-flex justify-content-between text-muted mt-2">
-                    <span>Длительность:</span>
-                    <span>{{ total_duration }} мин</span>
-                </div>
-            </div>
+      <div class="d-flex flex-column gap-2 align-items-center">
+        <h1 class="display-6 fw-bold text-gold mb-0">Выбор мастера</h1>
+        <p class="lead text-muted mb-0">Шаг 2 из 3 • Выберите мастера для вашей записи</p>
+        <div class="bm-progress w-100" style="max-width: 680px;">
+          <div></div>
         </div>
+      </div>
     </div>
-</section>
+  </section>
 
-<!-- Выбор мастера -->
-<section class="py-5">
-    <div class="container">
-        <h2 class="text-center fw-bold text-gold mb-5" data-aos="fade-up">Выберите мастера</h2>
+  <!-- Сводка услуг -->
+  <section class="bm-section pt-4">
+    <div class="container" data-aos="fade-up">
+      <div class="bm-card mx-auto" style="max-width: 820px;">
+        <div class="p-4 p-md-5">
 
-        <form method="post" action="{% url 'book_datetime_multi' %}" id="masterForm">
-            {% csrf_token %}
-            <!-- Скрытые поля с ID услуг -->
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-3">
+            <div>
+              <div class="text-gold fw-bold fs-4">Выбранные услуги</div>
+              <div class="text-muted">Проверьте перед выбором мастера</div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <span class="bm-pill">🧾 {{ total_price }} ₸</span>
+              <span class="bm-pill">⏱ {{ total_duration }} мин</span>
+              <span class="bm-pill">📌 {{ services|length }} услуг(и)</span>
+            </div>
+          </div>
+
+          <ul class="list-group list-group-flush bm-summary-list mb-0">
             {% for service in services %}
-            <input type="hidden" name="services" value="{{ service.id }}">
+              <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                <span class="text-light fw-bold">{{ service.name }}</span>
+                <span class="text-gold fw-bold">{{ service.price }} ₸ <span class="text-muted fw-normal">({{ service.duration }} мин)</span></span>
+              </li>
             {% endfor %}
+          </ul>
 
-            <div class="row g-4">
-                {% for master in masters %}
-                <div class="col-12 col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="{% cycle '100' '200' '300' '100' %}">
-                    <div class="card h-100 bg-dark border-0 shadow-lg hover-lift">
-                        <div class="card-body text-center d-flex flex-column p-4">
-                            <!-- Фото -->
-                            <div class="mb-4">
-                                {% if master.photo %}
-                                <img src="{{ master.photo.url }}" class="rounded-circle shadow-lg" style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #FFD700;" alt="{{ master.full_name }}" loading="lazy">
-                                {% else %}
-                                <img src="https://via.placeholder.com/120/1E1E1E/FFD700?text={{ master.full_name|slice:":1" }}" class="rounded-circle shadow-lg" style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #FFD700;" alt="{{ master.full_name }}">
-                                {% endif %}
-                            </div>
-
-                            <!-- Имя и рейтинг -->
-                            <h5 class="fw-bold fs-4 text-gold mb-2">{{ master.full_name }}</h5>
-                            {% if master.reviews_count > 0 %}
-                            <div class="mb-3">
-                                <span class="fs-3 text-gold">
-                                    {% for i in "12345" %}
-                                    <span class="{% if forloop.counter <= master.average_rating|floatformat:0 %}text-gold{% else %}text-muted{% endif %}">★</span>
-                                    {% endfor %}
-                                </span>
-                                <span class="text-muted ms-2">({{ master.average_rating|floatformat:1 }})</span>
-                            </div>
-                            {% else %}
-                            <p class="text-muted mb-3">Пока нет отзывов</p>
-                            {% endif %}
-
-                            <!-- Описание -->
-                            <p class="text-muted flex-grow-1 mb-4">{{ master.description|default:"Опытный мастер с индивидуальным подходом" |truncatewords:20 }}</p>
-
-                            <!-- Радио-кнопка -->
-                            <div class="mt-auto">
-                                <div class="form-check form-check-lg">
-                                    <input class="form-check-input" type="radio" name="master" value="{{ master.id }}" id="master{{ master.id }}" required>
-                                    <label class="form-check-label fw-bold fs-5" for="master{{ master.id }}">
-                                        Выбрать этого мастера
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% empty %}
-                <div class="col-12 text-center py-5">
-                    <p class="text-muted fs-5">Мастера пока не добавлены</p>
-                </div>
-                {% endfor %}
-            </div>
-
-            <!-- Фиксированная кнопка на мобильных + обычная на десктоп -->
-            <div class="fixed-bottom d-md-none bg-dark border-top border-secondary py-3 px-4 shadow-lg" id="mobileActionBar" style="display: none;">
-                <div class="container-fluid">
-                    <div class="d-flex align-items-center justify-content-center">
-                        <button type="submit" class="btn btn-gold btn-lg px-5 fw-bold rounded-pill" disabled id="submitBtnMobile">
-                            Далее → Дата и время
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Обычная кнопка для десктоп -->
-            <div class="text-center mt-5 pt-5 d-none d-md-block" id="desktopSubmit">
-                <button type="submit" class="btn btn-gold btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg" disabled id="submitBtnDesktop">
-                    Далее → Дата и время
-                </button>
-            </div>
-        </form>
+        </div>
+      </div>
     </div>
-</section>
+  </section>
+
+  <!-- Выбор мастера -->
+  <section class="bm-section pt-0">
+    <div class="container">
+      <div class="text-center mb-4" data-aos="fade-up">
+        <h2 class="fw-bold text-gold mb-2">Выберите мастера</h2>
+        <p class="text-muted mb-0">Нажмите на карточку мастера, чтобы выбрать</p>
+      </div>
+
+      <form method="post" action="{% url 'book_datetime_multi' %}" id="masterForm">
+        {% csrf_token %}
+
+        <!-- Скрытые поля услуг -->
+        {% for service in services %}
+          <input type="hidden" name="services" value="{{ service.id }}">
+        {% endfor %}
+
+        <div class="row g-4">
+          {% for master in masters %}
+          <div class="col-12 col-md-6 col-lg-4"
+               data-aos="zoom-in"
+               data-aos-delay="{% cycle '100' '200' '300' '100' %}">
+
+            <div class="bm-card bm-master-card h-100 p-4 text-center" data-master-card="{{ master.id }}">
+              <!-- radio (скрыт), но участвует в форме -->
+              <input class="bm-radio" type="radio" name="master" value="{{ master.id }}" id="master{{ master.id }}" required>
+
+              <!-- Фото -->
+              <div class="bm-avatar-wrap mb-3">
+                {% if master.photo %}
+                  <img src="{{ master.photo.url }}" class="bm-avatar" alt="{{ master.full_name }}" loading="lazy">
+                {% else %}
+                  <img src="https://via.placeholder.com/240/1E1E1E/FFD700?text={{ master.full_name|slice:":1" }}"
+                       class="bm-avatar" alt="{{ master.full_name }}" loading="lazy">
+                {% endif %}
+              </div>
+
+              <!-- Имя -->
+              <h5 class="fw-bold fs-4 text-gold mb-2">{{ master.full_name }}</h5>
+
+              <!-- Рейтинг -->
+              {% if master.reviews_count > 0 %}
+                <div class="mb-3">
+                  <span class="bm-stars">
+                    {% for i in "12345" %}
+                      <span class="{% if forloop.counter <= master.average_rating|floatformat:0 %}text-gold{% else %}text-muted{% endif %}">★</span>
+                    {% endfor %}
+                  </span>
+                  <span class="text-muted ms-2">({{ master.average_rating|floatformat:1 }})</span>
+                </div>
+              {% else %}
+                <p class="text-muted mb-3">Пока нет отзывов</p>
+              {% endif %}
+
+              <!-- Описание -->
+              <p class="text-muted mb-3">
+                {{ master.description|default:"Опытный мастер с индивидуальным подходом"|truncatewords:18 }}
+              </p>
+
+              <div class="bm-selected-tag">✅ Выбрано</div>
+
+              <!-- Кнопка (опционально, просто подсказка) -->
+              <button type="button" class="btn btn-outline-gold w-100 rounded-pill fw-bold mt-auto">
+                Выбрать
+              </button>
+            </div>
+
+          </div>
+          {% empty %}
+          <div class="col-12 text-center py-5">
+            <p class="text-muted fs-5">Мастера пока не добавлены</p>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Моб бар -->
+        <div class="fixed-bottom d-md-none bg-dark border-top border-secondary py-3 px-4 shadow-lg"
+             id="mobileActionBar" style="display:none;">
+          <div class="container-fluid">
+            <div class="d-flex align-items-center justify-content-center">
+              <button type="submit" class="btn btn-outline-gold btn-lg px-5 fw-bold rounded-pill"
+                      disabled id="submitBtnMobile">
+                Далее → Дата и время
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Десктоп кнопка -->
+        <div class="text-center mt-5 pt-3 d-none d-md-block" id="desktopSubmit">
+          <button type="submit" class="btn btn-outline-gold btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg"
+                  disabled id="submitBtnDesktop">
+            Далее → Дата и время
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </section>
+
+</div>
 
 <script>
-    // Активация кнопки только после выбора мастера
-    const radios = document.querySelectorAll('input[name="master"]');
-    const submitBtnDesktop = document.getElementById('submitBtnDesktop');
-    const submitBtnMobile = document.getElementById('submitBtnMobile');
-    const mobileBar = document.getElementById('mobileActionBar');
+  const cards = document.querySelectorAll('[data-master-card]');
+  const radios = document.querySelectorAll('input[name="master"]');
 
-    function checkSelection() {
-        const selected = Array.from(radios).some(radio => radio.checked);
-        submitBtnDesktop.disabled = !selected;
-        submitBtnMobile.disabled = !selected;
-        mobileBar.style.display = selected ? 'block' : 'none';
-    }
+  const submitBtnDesktop = document.getElementById('submitBtnDesktop');
+  const submitBtnMobile = document.getElementById('submitBtnMobile');
+  const mobileBar = document.getElementById('mobileActionBar');
 
-    radios.forEach(radio => {
-        radio.addEventListener('change', checkSelection);
+  function updateUI() {
+    const selected = Array.from(radios).some(r => r.checked);
+    submitBtnDesktop.disabled = !selected;
+    submitBtnMobile.disabled = !selected;
+    mobileBar.style.display = selected ? 'block' : 'none';
+  }
+
+  function clearSelectedCards() {
+    cards.forEach(c => c.classList.remove('selected'));
+  }
+
+  cards.forEach(card => {
+    card.addEventListener('click', (e) => {
+      // если кликнули по ссылке/кнопке внутри — всё равно выберем карточку
+      const id = card.getAttribute('data-master-card');
+      const radio = document.getElementById(`master${id}`);
+      if (!radio) return;
+
+      radio.checked = true;
+      clearSelectedCards();
+      card.classList.add('selected');
+
+      updateUI();
+
+      // на мобилке приятно подсветить нижнюю кнопку появлением
+      if (window.innerWidth < 768) {
+        mobileBar?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }
     });
+  });
 
-    // Инициализация
-    checkSelection();
-
-    // Hover-эффект карточек
-    document.querySelectorAll('.card').forEach(card => {
-        card.addEventListener('mouseenter', () => card.classList.add('hover-lift'));
-        card.addEventListener('mouseleave', () => card.classList.remove('hover-lift'));
+  // если кто-то выбрал радио (на всякий)
+  radios.forEach(r => {
+    r.addEventListener('change', () => {
+      clearSelectedCards();
+      const id = r.value;
+      const card = document.querySelector(`[data-master-card="${id}"]`);
+      if (card) card.classList.add('selected');
+      updateUI();
     });
+  });
+
+  // init
+  updateUI();
 </script>
-
-<style>
-    .hover-lift {
-        transform: translateY(-10px);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5) !important;
-    }
-
-    .form-check-input:checked {
-        background-color: #FFD700;
-        border-color: #FFD700;
-    }
-
-    .fixed-bottom {
-        z-index: 1000;
-    }
-</style>
 
 {% endblock %}

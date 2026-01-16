@@ -992,31 +992,60 @@ def cabinet_dashboard(request):
 
     try:
         client = request.user.client
-    except:
+    except Exception:
         messages.error(request, "Ошибка профиля.")
         return redirect("cabinet_login")
 
-    appointments = Appointment.objects.filter(client_phone=client.phone).order_by(
-        "-date", "-time"
-    )
+    tab = request.GET.get("tab", "upcoming")
+    today = timezone.localdate()
+    tomorrow = today + timedelta(days=1)
 
-    # Добавляем флаг can_cancel для каждой записи
+    qs = Appointment.objects.filter(client_phone=client.phone)
+
+    # --- ФИЛЬТРЫ ---
+    if tab == "upcoming":
+        # Предстоящие: сегодня и дальше, кроме отменённых
+        qs = qs.filter(date__gte=today).exclude(status="cancelled")
+        qs = qs.order_by("date", "time")
+    elif tab == "past":
+        # Прошедшие: до сегодня (можно оставить completed/no_show и т.д.)
+        qs = qs.filter(date__lt=today).exclude(status="cancelled")
+        qs = qs.order_by("-date", "-time")
+    elif tab == "cancelled":
+        qs = qs.filter(status="cancelled").order_by("-date", "-time")
+    else:
+        # all
+        qs = qs.order_by("-date", "-time")
+
+    appointments = list(qs)  # чтобы можно было навесить can_cancel
+
+    # --- can_cancel ---
     now = timezone.now()
     for app in appointments:
+        app.can_cancel = False
+
         if app.status in ["new", "confirmed"]:
-            app_datetime = timezone.make_aware(datetime.combine(app.date, app.time))
-            if now + timedelta(hours=2) < app_datetime:
-                app.can_cancel = True
-            else:
-                app.can_cancel = False
-        else:
-            app.can_cancel = False
+            # app.time может быть time-объектом или строкой — подстрахуемся
+            app_time = app.time
+            if isinstance(app_time, str):
+                try:
+                    app_time = datetime.strptime(app_time, "%H:%M").time()
+                except ValueError:
+                    app_time = None
+
+            if app_time is not None:
+                app_datetime = timezone.make_aware(datetime.combine(app.date, app_time))
+                # отмена возможна, если до записи больше 2 часов
+                app.can_cancel = (now + timedelta(hours=2) < app_datetime)
 
     return render(
         request,
         "core/cabinet_dashboard.html",
         {
             "appointments": appointments,
+            "today": today,
+            "tomorrow": tomorrow,
+            "tab": tab,
         },
     )
 
@@ -1177,52 +1206,82 @@ def master_change_status(request, appointment_id, new_status):
 
 @login_required
 def master_dashboard(request):
+    # доступ только мастеру
     if not hasattr(request.user, "master_profile") or not request.user.master_profile:
         messages.error(request, "Доступ запрещён.")
         return redirect("cabinet_logout")
 
     master = request.user.master_profile
 
-    filter_type = request.GET.get("filter", "all")
-    show_completed = request.GET.get("show_completed") == "1"  # чекбокс включён?
+    # GET-параметры
+    filter_type = request.GET.get("filter", "all")    # today / tomorrow / all
+    status_filter = request.GET.get("status", "all")  # new / confirmed / all
+    show_completed = request.GET.get("show_completed") == "1"
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     tomorrow = today + timedelta(days=1)
 
-    appointments = Appointment.objects.filter(master=master)
+    # основной queryset
+    appointments = (
+        Appointment.objects
+        .filter(master=master)
+        .prefetch_related("service")  # важно для total_price()
+    )
 
-    # Фильтр по дате
+    # по умолчанию скрываем завершённые/отменённые/не пришёл
+    if not show_completed:
+        appointments = appointments.exclude(status__in=["completed", "no_show", "cancelled"])
+
+    # фильтр по дате
     if filter_type == "today":
         appointments = appointments.filter(date=today)
     elif filter_type == "tomorrow":
         appointments = appointments.filter(date=tomorrow)
 
-    # По умолчанию скрываем завершённые/отменённые/не пришедшие
-    if not show_completed:
-        appointments = appointments.exclude(
-            status__in=["completed", "no_show", "cancelled"]
-        )
+    # фильтр по статусу
+    if status_filter in ["new", "confirmed"]:
+        appointments = appointments.filter(status=status_filter)
 
-    appointments = appointments.order_by("-date", "time")
+    # сортировка: ближайшее сверху
+    if filter_type in ["today", "tomorrow"]:
+        appointments = appointments.order_by("time")
+    else:
+        appointments = appointments.order_by("date", "time")
 
-    # Статистика для сегодня (для примера, можно убрать если не нужно)
-    appointments_today = Appointment.objects.filter(master=master, date=today)
+    # ---- статистика ----
+    appointments_today = (
+        Appointment.objects
+        .filter(master=master, date=today)
+        .exclude(status="cancelled")
+        .prefetch_related("service")
+    )
+
+    today_count = appointments_today.count()
     total_today = sum(app.total_price() for app in appointments_today)
-    appointments_new = appointments_today.filter(status="new")
+
+    new_count = Appointment.objects.filter(master=master, status="new").count()
 
     context = {
         "master": master,
         "appointments": appointments,
-        "appointments_today": appointments_today,
-        "total_today": total_today,
-        "appointments_new": appointments_new,
         "today": today,
         "tomorrow": tomorrow,
-        "show_completed": show_completed,  # передаём в шаблон
+        "show_completed": show_completed,
+
+        # для нового шаблона
+        "stats": {
+            "today_count": today_count,
+            "today_revenue": int(total_today),
+            "new_count": new_count,
+        },
+
+        # оставляю твои старые переменные на всякий
+        "appointments_today": appointments_today,
+        "total_today": int(total_today),
+        "appointments_new": Appointment.objects.filter(master=master, date=today, status="new"),
     }
 
     return render(request, "core/master_dashboard.html", context)
-
 
 @login_required
 def master_change_status(request, appointment_id, new_status):

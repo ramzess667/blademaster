@@ -1,192 +1,210 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+<style>
+  .bm-login-wrap { padding-bottom: 24px; }
+
+  /* Переключатель ролей */
+  .bm-role-switch {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn-role {
+    border: 1px solid rgba(255,215,0,0.75);
+    color: var(--gold);
+    background: transparent;
+    transition: all 0.2s ease;
+    border-radius: 999px;
+    font-weight: 800;
+    padding: 14px 22px;
+    min-width: 190px;
+  }
+  .btn-role:hover,
+  .btn-role.active {
+    background: var(--gold);
+    color: #000;
+    transform: translateY(-1px);
+  }
+
+  /* Внутренние подсказки */
+  .bm-hint { color: var(--text-muted); font-size: .92rem; }
+
+  /* Адаптивка */
+  @media (max-width: 576px) {
+    .btn-role { width: 100%; min-width: auto; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 
-<!-- Заголовок -->
-<section class="py-5 text-center border-bottom border-secondary">
+<div class="bm-login-wrap">
+
+  <!-- Заголовок -->
+  <section class="bm-page-title">
     <div class="container" data-aos="fade-down">
-        <h1 class="display-5 fw-bold text-gold mb-3">Вход в личный кабинет</h1>
-        <p class="lead text-light">Выберите роль</p>
+      <h1 class="display-6 fw-bold text-gold mb-2 text-center">Вход в личный кабинет</h1>
+      <p class="lead text-muted text-center mb-0">Выберите роль</p>
     </div>
-</section>
+  </section>
 
-<!-- Форма входа -->
-<section class="py-5">
+  <!-- Форма входа -->
+  <section class="bm-section pt-4">
     <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-md-6 col-lg-5">
-                <div class="card bg-dark border-0 shadow-lg overflow-hidden">
-                    <div class="card-body p-5 p-md-6">
-                        <!-- Переключатель ролей — большой, понятный, без галочек -->
-                        <div class="d-flex flex-column flex-md-row justify-content-center mb-5 gap-3">
-                            <button type="button" class="btn btn-role active px-5 py-3 fw-bold fs-5" data-role="client">
-                                <i class="bi bi-person me-2 fs-4"></i> Я клиент
-                            </button>
+      <div class="row justify-content-center">
+        <div class="col-md-7 col-lg-6 col-xl-5">
 
-                            <button type="button" class="btn btn-role px-5 py-3 fw-bold fs-5" data-role="master">
-                                <i class="bi bi-scissors me-2 fs-4"></i> Я мастер
-                            </button>
-                        </div>
+          <div class="bm-card p-0 overflow-hidden">
+            <div class="p-4 p-md-5">
 
-                        {% if messages %}
-                        <div class="alert alert-danger text-center mb-4">
-                            {% for message in messages %}
-                            {{ message }}
-                            {% endfor %}
-                        </div>
-                        {% endif %}
+              <!-- Роли -->
+              <div class="bm-role-switch mb-4" role="tablist" aria-label="Выбор роли">
+                <button type="button" class="btn btn-role active" data-role="client" aria-pressed="true">
+                  Я клиент
+                </button>
 
-                        <form method="post" id="loginForm">
-                            {% csrf_token %}
+                <button type="button" class="btn btn-role" data-role="master" aria-pressed="false">
+                  Я мастер
+                </button>
+              </div>
 
-                            <!-- Единое поле ввода (маска только для клиента) -->
-                            <div class="mb-4">
-                                <label class="form-label fw-bold text-light" id="usernameLabel">Телефон</label>
-                                <input type="text" name="username" id="usernameInput" class="form-control form-control-lg bg-secondary text-light border-gold" 
-                                       placeholder="+7 (___) ___-__-__" required autofocus>
-                                <small class="text-muted d-block mt-1" id="usernameHint">Ваш номер телефона</small>
-                            </div>
-
-                            <div class="mb-5">
-                                <label class="form-label fw-bold text-light">Пароль</label>
-                                <input type="password" name="password" class="form-control form-control-lg bg-secondary text-light border-gold" required>
-                            </div>
-
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-gold btn-lg fw-bold rounded-pill shadow-lg" id="submitBtn">
-                                    Войти
-                                    <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" id="loginLoader">
-                                        <span class="visually-hidden">Загрузка...</span>
-                                    </span>
-                                </button>
-                            </div>
-                        </form>
-
-                        <div class="text-center mt-4">
-                            <p class="text-muted small mb-2">
-                                Клиенты: вход по номеру телефона<br>
-                                Мастера: вход по логину от администратора
-                            </p>
-                            <a href="/" class="text-gold text-decoration-none">← Вернуться на главную</a>
-                        </div>
-                    </div>
+              {% if messages %}
+                <div class="alert alert-danger text-center mb-4">
+                  {% for message in messages %}{{ message }}{% endfor %}
                 </div>
-            </div>
-        </div>
-    </div>
-</section>
+              {% endif %}
 
-<!-- IMask и JS -->
+              <form method="post" id="loginForm" novalidate>
+                {% csrf_token %}
+
+                <div class="mb-3">
+                  <label class="form-label fw-bold text-light" id="usernameLabel">Телефон</label>
+                  <input type="text"
+                         name="username"
+                         id="usernameInput"
+                         class="form-control form-control-lg bm-input"
+                         placeholder="+7 (___) ___-__-__"
+                         required
+                         autofocus>
+                  <div class="bm-hint mt-1" id="usernameHint">Ваш номер телефона</div>
+                </div>
+
+                <div class="mb-4">
+                  <label class="form-label fw-bold text-light">Пароль</label>
+                  <input type="password"
+                         name="password"
+                         class="form-control form-control-lg bm-input"
+                         required>
+                </div>
+
+                <div class="d-grid">
+                  <button type="submit"
+                          class="btn btn-outline-gold btn-lg fw-bold rounded-pill shadow-lg"
+                          id="submitBtn">
+                    Войти
+                    <span class="spinner-border spinner-border-sm ms-2 d-none"
+                          role="status"
+                          id="loginLoader"
+                          aria-hidden="true"></span>
+                  </button>
+                </div>
+              </form>
+
+              <div class="text-center mt-4">
+                <p class="text-muted small mb-2">
+                  Клиенты: вход по номеру телефона<br>
+                  Мастера: вход по логину от администратора
+                </p>
+                <a href="/" class="text-gold text-decoration-none">Вернуться на главную</a>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- IMask + JS -->
 <script src="https://unpkg.com/imask"></script>
 <script>
-    const usernameInput = document.getElementById('usernameInput');
-    const usernameLabel = document.getElementById('usernameLabel');
-    const usernameHint = document.getElementById('usernameHint');
-    const submitBtn = document.getElementById('submitBtn');
-    const loginLoader = document.getElementById('loginLoader');
+  const usernameInput = document.getElementById('usernameInput');
+  const usernameLabel = document.getElementById('usernameLabel');
+  const usernameHint = document.getElementById('usernameHint');
 
-    let maskInstance = null;
+  const submitBtn = document.getElementById('submitBtn');
+  const loginLoader = document.getElementById('loginLoader');
+  const form = document.getElementById('loginForm');
 
-    function applyPhoneMask() {
-        removePhoneMask();
-        maskInstance = IMask(usernameInput, {
-            mask: '+{7} (000) 000-00-00',
-            lazy: false,
-            placeholderChar: '_'
-        });
+  let maskInstance = null;
+
+  function applyPhoneMask() {
+    if (maskInstance) maskInstance.destroy();
+    maskInstance = IMask(usernameInput, {
+      mask: '+{7} (000) 000-00-00',
+      lazy: false,
+      placeholderChar: '_'
+    });
+  }
+
+  function removePhoneMask() {
+    if (maskInstance) {
+      maskInstance.destroy();
+      maskInstance = null;
     }
+  }
 
-    function removePhoneMask() {
-        if (maskInstance) {
-            maskInstance.destroy();
-            maskInstance = null;
-            // Важно: сбрасываем значение поля, чтобы не осталось старой маски
-            usernameInput.value = '';
-            usernameInput.placeholder = 'Введите логин';
-        }
-    }
-
-    // Переключение ролей
-    document.querySelectorAll('.btn-role').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.btn-role').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-
-            const role = this.dataset.role;
-
-            if (role === 'client') {
-                usernameLabel.textContent = 'Телефон';
-                usernameHint.textContent = 'Ваш номер телефона';
-                usernameInput.placeholder = '+7 (___) ___-__-__';
-                applyPhoneMask();
-            } else {
-                usernameLabel.textContent = 'Логин';
-                usernameHint.textContent = 'Логин от администратора';
-                usernameInput.placeholder = 'Введите ваш логин';
-                removePhoneMask();
-            }
-            usernameInput.focus();
-        });
+  function setRole(role) {
+    document.querySelectorAll('.btn-role').forEach(b => {
+      const active = b.dataset.role === role;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
 
-    // Лоадер при отправке
-    document.getElementById('loginForm').addEventListener('submit', function(e) {
-        submitBtn.disabled = true;
-        loginLoader.classList.remove('d-none');
-    });
+    // сбрасываем поле при смене роли (чтобы не оставалась маска/символы)
+    usernameInput.value = '';
+
+    if (role === 'client') {
+      usernameLabel.textContent = 'Телефон';
+      usernameHint.textContent = 'Ваш номер телефона';
+      usernameInput.placeholder = '+7 (___) ___-__-__';
+      applyPhoneMask();
+    } else {
+      usernameLabel.textContent = 'Логин';
+      usernameHint.textContent = 'Логин от администратора';
+      usernameInput.placeholder = 'Введите ваш логин';
+      removePhoneMask();
+    }
+
+    usernameInput.focus();
+  }
+
+  // init role = client
+  setRole('client');
+
+  document.querySelectorAll('.btn-role').forEach(btn => {
+    btn.addEventListener('click', () => setRole(btn.dataset.role));
+  });
+
+  // Loader при отправке (только если форма валидна)
+  form.addEventListener('submit', function(e) {
+    // встроенная HTML-валидация
+    if (!form.checkValidity()) {
+      e.preventDefault();
+      e.stopPropagation();
+      form.classList.add('was-validated');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    loginLoader.classList.remove('d-none');
+  });
 </script>
-
-<style>
-    .form-control {
-        background-color: #2A2A2A !important;
-        color: #E0E0E0 !important;
-        border-color: #444444;
-    }
-    .form-control::placeholder {
-        color: #A0A0A0 !important;
-        opacity: 1;
-    }
-    .form-control:focus {
-        border-color: #FFD700 !important;
-        box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.25);
-    }
-    .btn-gold {
-        background-color: #FFD700;
-        color: #000;
-        transition: all 0.25s ease;
-    }
-    .btn-gold:hover {
-        background-color: #E6C200;
-        transform: translateY(-2px);
-    }
-    .btn-role {
-        border: 2px solid #FFD700;
-        color: #FFD700;
-        background: transparent;
-        transition: all 0.25s ease;
-        min-width: 180px;
-    }
-    .btn-role.active,
-    .btn-role:hover {
-        background-color: #FFD700;
-        color: #000;
-        transform: translateY(-2px);
-    }
-    .text-light {
-        color: #E0E0E0 !important;
-    }
-    .text-muted {
-        color: #A0A0A0 !important;
-    }
-    @media (max-width: 576px) {
-        .btn-role {
-            width: 100%;
-            min-width: auto;
-        }
-        .card-body {
-            padding: 2rem !important;
-        }
-    }
-</style>
 
 {% endblock %}

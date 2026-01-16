@@ -1,209 +1,941 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
 
-<!-- Hero Section – Главный экран -->
-<section class="hero position-relative text-center text-white"
-    style="background-image: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.45)), url('https://media.antonovich-design.ae/uploads/gallery/2021/12/antonovich-design-2021o2S5q9V8XqC2.jpg'); 
-                background-size: cover; background-position: center; min-height: 100vh; display: flex; align-items: center;">
-    <div class="container" data-aos="fade-up" data-aos-delay="200">
-        <h1 class="display-3 display-md-2 fw-bold mb-4 text-gold">BladeMaster</h1>
-        <p class="lead fs-3 fw-light mb-5 opacity-90">Премиум мужской груминг в Алматы<br>Стиль, который меняет тебя</p>
+<!-- Hero -->
+<section class="bm-hero">
+  <div class="bm-hero__bg"
+       style="background-image: linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.55)), url('{% static 'images/home/hero.jpg' %}')">
+  </div>
 
-        <div class="d-flex flex-column flex-md-row justify-content-center gap-4 gap-md-5">
-            <a href="/services/" class="btn btn-gold btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg hover-lift">
-                Записаться онлайн
-            </a>
-            <a href="/masters/" class="btn btn-outline-gold btn-lg px-5 py-3 fw-bold rounded-pill hover-lift">
-                Выбрать мастера
-            </a>
-        </div>
+  <div class="container bm-hero__content" data-aos="fade-up">
+    <div class="bm-hero__badge text-gold">Премиум барбершоп • Алматы</div>
+
+    <h1 class="bm-hero__title text-gold">BladeMaster</h1>
+    <p class="bm-hero__subtitle text-light">
+      Мужской груминг, который выглядит дорого: стрижка, борода, уход.
+      Онлайн-запись за минуту.
+    </p>
+
+    <div class="bm-hero__cta d-flex flex-column flex-sm-row gap-3 justify-content-center">
+      <a href="/services/" class="btn btn-gold btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg">
+        Записаться онлайн
+      </a>
+      <a href="/masters/" class="btn btn-outline-gold btn-lg px-5 py-3 fw-bold rounded-pill">
+        Выбрать мастера
+      </a>
     </div>
+
+    <!-- мини-преимущества -->
+    <div class="bm-hero__stats row g-3 justify-content-center mt-4 mt-md-5">
+      <div class="col-12 col-sm-6 col-lg-4">
+        <div class="bm-pill">
+          <div class="bm-pill__title text-gold">Удобно</div>
+          <div class="bm-pill__text text-muted">Запись 24/7 без звонков</div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-lg-4">
+        <div class="bm-pill">
+          <div class="bm-pill__title text-gold">Профессионально</div>
+          <div class="bm-pill__text text-muted">Мастера с опытом и стилем</div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-lg-4">
+        <div class="bm-pill">
+          <div class="bm-pill__title text-gold">Чисто</div>
+          <div class="bm-pill__text text-muted">Стерильность и комфорт</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
 
-<!-- Преимущества / Почему мы -->
+<!-- Почему мы -->
 <section class="py-5 py-md-7 bg-secondary bg-opacity-10">
-    <div class="container" data-aos="fade-up">
-        <h2 class="text-center fw-bold mb-5 mb-md-7 text-gold">Почему выбирают BladeMaster</h2>
-        <div class="row g-4 g-md-5 text-center">
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                <div class="card h-100 bg-dark border-0 shadow-lg hover-lift">
-                    <div class="card-body p-5 p-md-6">
-                        <div class="fs-1 text-gold mb-4">✂️</div>
-                        <h4 class="fw-bold mb-3">Опытные мастера</h4>
-                        <p class="text-muted">Специалисты с 7+ лет опыта и международными сертификатами</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
-                <div class="card h-100 bg-dark border-0 shadow-lg hover-lift">
-                    <div class="card-body p-5 p-md-6">
-                        <div class="fs-1 text-gold mb-4">🕒</div>
-                        <h4 class="fw-bold mb-3">Удобная онлайн-запись</h4>
-                        <p class="text-muted">24/7 без звонков — выбирай время и мастера в 3 клика</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
-                <div class="card h-100 bg-dark border-0 shadow-lg hover-lift">
-                    <div class="card-body p-5 p-md-6">
-                        <div class="fs-1 text-gold mb-4">⭐</div>
-                        <h4 class="fw-bold mb-3">Премиум атмосфера</h4>
-                        <p class="text-muted">Комфорт, кофе, музыка и внимание к каждой детали</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+  <div class="container" data-aos="fade-up">
+    <div class="text-center mb-4 mb-md-5">
+      <h2 class="fw-bold text-gold mb-2">Почему выбирают BladeMaster</h2>
+      <p class="text-muted mb-0">Сделали упор на сервис, стиль и удобство</p>
     </div>
+
+    <div class="row g-4">
+      <div class="col-12 col-md-4" data-aos="fade-up" data-aos-delay="100">
+        <div class="card h-100 bg-dark border-0 shadow-lg bm-card">
+          <div class="card-body p-4 p-md-5">
+            <div class="bm-kicker text-gold mb-2">Мастера</div>
+            <h4 class="fw-bold mb-2">Стабильный результат</h4>
+            <p class="text-muted mb-0">Стрижки и борода, которые держат форму и выглядят аккуратно.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-4" data-aos="fade-up" data-aos-delay="200">
+        <div class="card h-100 bg-dark border-0 shadow-lg bm-card">
+          <div class="card-body p-4 p-md-5">
+            <div class="bm-kicker text-gold mb-2">Онлайн</div>
+            <h4 class="fw-bold mb-2">Запись без лишнего</h4>
+            <p class="text-muted mb-0">Услуги → мастер → дата/время. Быстро и понятно.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-4" data-aos="fade-up" data-aos-delay="300">
+        <div class="card h-100 bg-dark border-0 shadow-lg bm-card">
+          <div class="card-body p-4 p-md-5">
+            <div class="bm-kicker text-gold mb-2">Сервис</div>
+            <h4 class="fw-bold mb-2">Премиум атмосфера</h4>
+            <p class="text-muted mb-0">Комфорт, внимание к деталям и чистая работа.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </section>
 
-<!-- До/После – Карусель (больше фото, подписи) -->
-<section class="py-5 py-md-7 bg-dark">
-    <div class="container" data-aos="fade-up">
-        <h2 class="text-center fw-bold mb-5 mb-md-7 text-gold">До и после: наши трансформации</h2>
-
-        <div id="transformationCarousel" class="carousel slide shadow-lg rounded-4 overflow-hidden"
-            data-bs-ride="carousel">
-            <div class="carousel-inner">
-                <div class="carousel-item active">
-                    <img src="https://www.shutterstock.com/image-photo/bearded-guy-before-after-haircut-260nw-1763529938.jpg"
-                        class="d-block w-100" alt="До/После 1" loading="lazy" style="height: 60vh; object-fit: cover;">
-                    <div class="carousel-caption d-none d-md-block">
-                        <h5 class="bg-dark bg-opacity-60 rounded-pill px-4 py-2 d-inline-block">Классический фейд</h5>
-                    </div>
-                </div>
-                <div class="carousel-item">
-                    <img src="https://www.newtimeshair.com/wp-content/uploads/2022/10/hair-system-haircuts-for-balding-men-before-and-after-7-1024x853.jpg"
-                        class="d-block w-100" alt="До/После 2" loading="lazy" style="height: 60vh; object-fit: cover;">
-                    <div class="carousel-caption d-none d-md-block">
-                        <h5 class="bg-dark bg-opacity-60 rounded-pill px-4 py-2 d-inline-block">Преображение зоны лысины
-                        </h5>
-                    </div>
-                </div>
-                <div class="carousel-item">
-                    <img src="https://www.shutterstock.com/image-photo/bald-man-before-after-haircut-260nw-1748737343.jpg"
-                        class="d-block w-100" alt="До/После 3" loading="lazy" style="height: 60vh; object-fit: cover;">
-                    <div class="carousel-caption d-none d-md-block">
-                        <h5 class="bg-dark bg-opacity-60 rounded-pill px-4 py-2 d-inline-block">Современный андеркат
-                        </h5>
-                    </div>
-                </div>
-                <div class="carousel-item">
-                    <img src="https://i.pinimg.com/originals/5d/2a/1b/5d2a1b5e0b5e5f5b5e5f5b5e5f5b5e5f.jpg"
-                        class="d-block w-100" alt="До/После 4" loading="lazy" style="height: 60vh; object-fit: cover;">
-                    <div class="carousel-caption d-none d-md-block">
-                        <h5 class="bg-dark bg-opacity-60 rounded-pill px-4 py-2 d-inline-block">Опасное бритьё</h5>
-                    </div>
-                </div>
-                <!-- Добавь ещё фото по желанию -->
-            </div>
-            <button class="carousel-control-prev" type="button" data-bs-target="#transformationCarousel"
-                data-bs-slide="prev">
-                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Previous</span>
-            </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#transformationCarousel"
-                data-bs-slide="next">
-                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Next</span>
-            </button>
-        </div>
+<!-- Портфолио: премиальная сетка (без карусели) -->
+<section class="py-5 py-md-7">
+  <div class="container" data-aos="fade-up">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-2 mb-4 mb-md-5">
+      <div>
+        <h2 class="fw-bold text-gold mb-2">Работы</h2>
+        <p class="text-muted mb-0">Примеры стрижек, бороды и ухода</p>
+      </div>
+      <a href="/services/" class="btn btn-outline-gold rounded-pill fw-bold px-4 py-2">
+        Записаться
+      </a>
     </div>
+
+    <div class="row g-3">
+      <div class="col-6 col-lg-4">
+        <div class="bm-photo">
+          <img src="{% static 'images/home/g1.jpg' %}" alt="Работа 1" loading="lazy">
+        </div>
+      </div>
+      <div class="col-6 col-lg-4">
+        <div class="bm-photo bm-photo--tall">
+          <img src="{% static 'images/home/g2.jpg' %}" alt="Работа 2" loading="lazy">
+        </div>
+      </div>
+      <div class="col-12 col-lg-4">
+        <div class="bm-photo">
+          <img src="{% static 'images/home/g3.jpg' %}" alt="Работа 3" loading="lazy">
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-4">
+        <div class="bm-photo">
+          <img src="{% static 'images/home/g4.jpg' %}" alt="Работа 4" loading="lazy">
+        </div>
+      </div>
+      <div class="col-6 col-lg-4">
+        <div class="bm-photo">
+          <img src="{% static 'images/home/g5.jpg' %}" alt="Работа 5" loading="lazy">
+        </div>
+      </div>
+      <div class="col-6 col-lg-4">
+        <div class="bm-photo">
+          <img src="{% static 'images/home/g6.jpg' %}" alt="Работа 6" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
 
-<!-- Наши мастера – премиум карточки -->
+<!-- Топ услуги -->
 <section class="py-5 py-md-7 bg-secondary bg-opacity-10">
-    <div class="container" data-aos="fade-up">
-        <h2 class="text-center fw-bold mb-5 mb-md-7 text-gold">Наши мастера</h2>
-        <div class="row g-4 g-md-5 justify-content-center">
-            {% for master in masters %}
-            <div class="col-md-6 col-lg-4 col-xl-3" data-aos="fade-up" data-aos-delay="100">
-                <div class="card h-100 bg-dark border-0 shadow-lg hover-lift overflow-hidden text-center position-relative">
-                    <!-- Фото с градиентом -->
-                    {% if master.photo %}
-                    <img src="{{ master.photo.url }}" class="card-img-top" alt="{{ master.full_name }}" style="height: 300px; object-fit: cover;">
-                    {% else %}
-                    <img src="https://via.placeholder.com/400x300?text=Мастер" class="card-img-top" alt="{{ master.full_name }}" style="height: 300px; object-fit: cover;">
-                    {% endif %}
-                    <div class="position-absolute bottom-0 start-0 end-0 bg-gradient-overlay p-4">
-                        <h5 class="fw-bold text-white mb-1">{{ master.full_name }}</h5>
-                        <p class="text-gold small mb-0">{{ master.specialization|default:"Специалист по мужскому грумингу" }}</p>
-                    </div>
-                </div>
-            </div>
-            {% empty %}
-            <div class="col-12 text-center py-5">
-                <p class="text-muted fs-5">Мастера скоро появятся здесь</p>
-            </div>
-            {% endfor %}
-        </div>
-
-        <div class="text-center mt-5">
-            <a href="/masters/" class="btn btn-gold btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg hover-lift">
-                Посмотреть всех мастеров →
-            </a>
-        </div>
+  <div class="container" data-aos="fade-up">
+    <div class="text-center mb-4 mb-md-5">
+      <h2 class="fw-bold text-gold mb-2">Популярные услуги</h2>
+      <p class="text-muted mb-0">То, что чаще всего выбирают</p>
     </div>
+
+    <div class="row g-4">
+      <div class="col-12 col-md-4">
+        <div class="card bg-dark border-0 shadow-lg bm-card h-100">
+          <div class="card-body p-4 p-md-5">
+            <div class="bm-kicker text-gold mb-2">Стрижка</div>
+            <h4 class="fw-bold mb-2">Классика / Фейд</h4>
+            <p class="text-muted mb-4">Чистые линии, форма, укладка по желанию.</p>
+            <a href="/services/" class="btn btn-outline-gold rounded-pill fw-bold px-4 py-2 w-100">
+              Выбрать
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <div class="card bg-dark border-0 shadow-lg bm-card h-100">
+          <div class="card-body p-4 p-md-5">
+            <div class="bm-kicker text-gold mb-2">Борода</div>
+            <h4 class="fw-bold mb-2">Оформление бороды</h4>
+            <p class="text-muted mb-4">Симметрия, контур, уход, рекомендации.</p>
+            <a href="/services/" class="btn btn-outline-gold rounded-pill fw-bold px-4 py-2 w-100">
+              Выбрать
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <div class="card bg-dark border-0 shadow-lg bm-card h-100">
+          <div class="card-body p-4 p-md-5">
+            <div class="bm-kicker text-gold mb-2">Комплекс</div>
+            <h4 class="fw-bold mb-2">Стрижка + борода</h4>
+            <p class="text-muted mb-4">Самый выгодный и популярный вариант.</p>
+            <a href="/services/" class="btn btn-outline-gold rounded-pill fw-bold px-4 py-2 w-100">
+              Выбрать
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </section>
 
-<!-- Финальный призыв -->
-<section class="py-5 py-md-7 text-center bg-dark">
-    <div class="container" data-aos="zoom-in">
-        <h3 class="fw-bold mb-4 text-gold">Готов изменить свой стиль?</h3>
-        <p class="lead text-muted mb-5">Запишитесь прямо сейчас — первые 30 минут консультация бесплатно</p>
-        <a href="/services/" class="btn btn-gold btn-lg px-5 py-4 fw-bold rounded-pill shadow-lg hover-lift">
-            Записаться онлайн →
-        </a>
+<!-- Мастера (коротко) -->
+<section class="py-5 py-md-7">
+  <div class="container" data-aos="fade-up">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-2 mb-4 mb-md-5">
+      <div>
+        <h2 class="fw-bold text-gold mb-2">Наши мастера</h2>
+        <p class="text-muted mb-0">Выбирайте по стилю и рейтингу</p>
+      </div>
+      <a href="/masters/" class="btn btn-outline-gold rounded-pill fw-bold px-4 py-2">
+        Все мастера
+      </a>
     </div>
+
+    <div class="row g-4">
+      {% for master in masters|slice:":3" %}
+      <div class="col-12 col-sm-6 col-lg-4">
+        <div class="card bg-dark border-0 shadow-lg bm-master h-100">
+          <div class="card-body p-4 text-center">
+            <div class="bm-master__avatar mx-auto mb-3">
+              {% if master.photo %}
+                <img src="{{ master.photo.url }}" alt="{{ master.full_name }}" loading="lazy">
+              {% else %}
+                <div class="bm-master__placeholder text-gold fw-bold">
+                  {{ master.full_name|slice:":1" }}
+                </div>
+              {% endif %}
+            </div>
+            <div class="fw-bold text-gold mb-1">{{ master.full_name }}</div>
+            <div class="text-muted small mb-3">
+              {{ master.specialization|default:"Мастер барбершопа" }}
+            </div>
+            <a href="/services/?master={{ master.id }}"
+               class="btn btn-outline-gold rounded-pill fw-bold px-4 py-2 w-100">
+              Записаться
+            </a>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="col-12 text-center py-4">
+        <div class="text-muted">Мастера скоро появятся</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- Финальный CTA -->
+<section class="py-5 py-md-7 bg-dark text-center">
+  <div class="container" data-aos="fade-up">
+    <h2 class="fw-bold text-gold mb-3">Готов обновить стиль</h2>
+    <p class="text-muted mb-4">Выберите услуги и удобное время. Всё займёт пару минут.</p>
+    <a href="/services/" class="btn btn-gold btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg">
+      Перейти к записи
+    </a>
+  </div>
 </section>
 
 <style>
-    .hero {
-        position: relative;
-    }
+  /* HERO */
+  .bm-hero{
+    position: relative;
+    min-height: 92vh;
+    display:flex;
+    align-items:center;
+    overflow:hidden;
+  }
+  .bm-hero__bg{
+    position:absolute;
+    inset:0;
+    background-size: cover;
+    background-position:center;
+    transform: scale(1.02);
+    filter: saturate(1.05);
+  }
+  .bm-hero__content{
+    position: relative;
+    z-index:2;
+    padding: 3.5rem 0;
+    text-align:center;
+  }
+  .bm-hero__badge{
+    display:inline-block;
+    border: 1px solid rgba(255,215,0,0.35);
+    background: rgba(0,0,0,0.35);
+    padding: .6rem 1rem;
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: .2px;
+    margin-bottom: 1.2rem;
+  }
+  .bm-hero__title{
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 1rem;
+    font-size: clamp(2.6rem, 6vw, 4.3rem);
+  }
+  .bm-hero__subtitle{
+    max-width: 780px;
+    margin: 0 auto 1.6rem;
+    font-size: clamp(1.05rem, 2vw, 1.35rem);
+    opacity: .92;
+  }
 
-    .hero::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.6));
-    }
-    
-    @media (max-width: 768px) {
-        .hero {
-            min-height: 80vh;
-        }
+  /* Pills */
+  .bm-pill{
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    padding: 1rem 1.1rem;
+    height: 100%;
+  }
+  .bm-pill__title{ font-weight: 800; }
+  .bm-pill__text{ margin-top: .15rem; }
 
-        .display-3 {
-            font-size: 3rem;
-        }
-    }
+  /* Cards */
+  .bm-card{
+    border-radius: 18px;
+    transition: transform .25s ease, box-shadow .25s ease;
+  }
+  .bm-card:hover{
+    transform: translateY(-6px);
+    box-shadow: 0 18px 40px rgba(0,0,0,0.45) !important;
+  }
+  .bm-kicker{
+    font-weight: 800;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+    font-size: .85rem;
+    opacity: .95;
+  }
 
-    /* Оверлей на фото мастера */
-    .bg-gradient-overlay {
-        background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 60%);
-    }
+  /* Portfolio grid */
+  .bm-photo{
+    position: relative;
+    border-radius: 18px;
+    overflow:hidden;
+    border: 1px solid rgba(255,215,0,0.14);
+    background: #0f0f0f;
+    aspect-ratio: 4 / 3;
+  }
+  .bm-photo--tall{ aspect-ratio: 4 / 5; }
+  .bm-photo img{
+    width:100%;
+    height:100%;
+    object-fit: cover;
+    display:block;
+    transform: scale(1.02);
+    transition: transform .35s ease;
+  }
+  .bm-photo:hover img{ transform: scale(1.08); }
 
-    /* Hover эффект карточки мастера */
-    .hover-lift {
-        transition: transform 0.4s ease, box-shadow 0.4s ease;
-    }
+  /* Masters mini */
+  .bm-master{
+    border-radius: 18px;
+    transition: transform .25s ease, box-shadow .25s ease;
+  }
+  .bm-master:hover{
+    transform: translateY(-6px);
+    box-shadow: 0 18px 40px rgba(0,0,0,0.45) !important;
+  }
+  .bm-master__avatar{
+    width: 96px;
+    height: 96px;
+    border-radius: 999px;
+    overflow:hidden;
+    border: 2px solid rgba(255,215,0,0.55);
+    background: rgba(255,255,255,0.04);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .bm-master__avatar img{
+    width:100%;
+    height:100%;
+    object-fit: cover;
+    display:block;
+  }
+  .bm-master__placeholder{
+    font-size: 2rem;
+    line-height: 1;
+  }
 
-    .hover-lift:hover {
-        transform: translateY(-12px);
-        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6) !important;
-    }
-
-    /* Адаптивность фото мастера */
-    @media (max-width: 576px) {
-        .card-img-top {
-            height: 220px !important;
-        }
-    }
+  /* Mobile tuning */
+  @media (max-width: 576px){
+    .bm-hero{ min-height: 84vh; }
+    .bm-hero__cta .btn{ width:100%; }
+  }
 </style>
 
 {% endblock %}
 
+{% block extra_head %} 
+<style>
+:root{
+  --gold: #FFD700;
+}
+
+/* ===== TOAST (подсказка) ===== */
+.px-toast{
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 28px));
+  z-index: 99999;
+  background: rgba(15,15,15,.92);
+  border: 1px solid rgba(255,215,0,.28);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 14px 50px rgba(0,0,0,.6);
+  padding: 12px 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s ease, transform .35s ease;
+}
+.px-toast.show{
+  opacity: 1;
+  pointer-events: auto;
+}
+.px-badge{
+  font-weight: 900;
+  letter-spacing: .12em;
+  font-size: 12px;
+  color: var(--gold);
+}
+.px-toast p{
+  margin: 0;
+  color: rgba(255,255,255,.92);
+  font-size: 13px;
+}
+.px-close{
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* ===== OVERLAY ===== */
+.ud-overlay{
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255,215,0,.12), rgba(10,10,10,.96));
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s ease;
+}
+.ud-overlay.show{
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* VHS эффект */
+.ud-vhs{
+  position: absolute;
+  inset: 0;
+  opacity: .15;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,.05),
+      rgba(255,255,255,.05) 1px,
+      transparent 3px,
+      transparent 6px
+    );
+  animation: vhsMove 1.2s linear infinite;
+  pointer-events: none;
+}
+@keyframes vhsMove{
+  to{ transform: translateY(8px); }
+}
+
+/* ===== CARD ===== */
+.ud-card{
+  position: relative;
+  width: min(640px, calc(100vw - 40px));
+  background: rgba(12,12,12,.88);
+  border-radius: 26px;
+  border: 1px solid rgba(255,215,0,.25);
+  padding: 24px 20px 22px;
+  text-align: center;
+  box-shadow: 0 30px 100px rgba(0,0,0,.75);
+  overflow: hidden;
+}
+.ud-noise{
+  position: absolute;
+  inset: 0;
+  opacity: .07;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* close */
+.ud-x{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,215,0,.25);
+  background: rgba(0,0,0,.45);
+  color: #ddd;
+  cursor: pointer;
+}
+
+/* ===== TEASE ===== */
+.ud-tease{
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255,255,255,.78);
+  font-weight: 800;
+  letter-spacing: .08em;
+  font-size: 13px;
+  margin-bottom: 12px;
+  opacity: 0;
+  transition: opacity .4s ease;
+}
+.ud-tease.show{ opacity: 1; }
+
+.ud-dots{ display: inline-flex; gap: 6px; }
+.ud-dot{
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255,215,0,.25);
+  transition: background .25s, transform .25s;
+}
+.ud-dot.on{
+  background: var(--gold);
+  transform: scale(1.25);
+}
+
+/* ===== DICE ===== */
+.ud-dice{
+  position: relative;
+  z-index: 2;
+  width: 160px;
+  height: 160px;
+  margin: 12px auto;
+  border-radius: 28px;
+  background: linear-gradient(180deg, #1b1b1b, #0e0e0e);
+  border: 1px solid rgba(255,215,0,.3);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 20px 70px rgba(0,0,0,.8);
+  opacity: 0;
+  transform: scale(.96);
+  transition: opacity .4s, transform .4s;
+}
+.ud-dice.show{
+  opacity: 1;
+  transform: scale(1);
+}
+.ud-dice.shake{
+  animation: diceShake 1.2s infinite;
+}
+@keyframes diceShake{
+  0%{ transform: translate(0,0) rotate(0); }
+  25%{ transform: translate(6px,-4px) rotate(5deg); }
+  50%{ transform: translate(-6px,4px) rotate(-6deg); }
+  75%{ transform: translate(4px,-3px) rotate(4deg); }
+  100%{ transform: translate(0,0) rotate(0); }
+}
+.ud-dice.final{
+  box-shadow:
+    0 25px 90px rgba(0,0,0,.85),
+    0 0 26px rgba(255,215,0,.35);
+}
+
+/* number */
+.ud-dice-num{
+  font-size: 66px;
+  font-weight: 900;
+  color: var(--gold);
+  letter-spacing: .06em;
+  text-shadow: 0 0 18px rgba(255,215,0,.35);
+}
+
+/* ===== MESSAGE ===== */
+.ud-msg{
+  position: relative;
+  z-index: 2;
+  margin-top: 10px;
+  color: rgba(255,255,255,.9);
+  font-size: 16px;
+  line-height: 1.4;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .45s ease, transform .45s ease;
+}
+.ud-msg.show{
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ===== BUTTON ===== */
+.ud-btn{
+  margin-top: 16px;
+  padding: 13px 20px;
+  border-radius: 14px;
+  background: rgba(255,215,0,.18);
+  border: 1px solid rgba(255,215,0,.35);
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: .06em;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .4s ease, transform .4s ease, background .2s;
+}
+.ud-btn:hover{
+  background: rgba(255,215,0,.26);
+}
+.ud-btn.show{
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ===== POPCORN ===== */
+.ud-pop{
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ud-pop span{
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate3d(-50%,-50%,0);
+  font-weight: 900;
+  color: var(--gold);
+  opacity: 0;
+  animation: popFly var(--dur) ease-out forwards;
+  font-size: var(--fs);
+  will-change: transform, opacity;
+}
+@keyframes popFly{
+  0%{ opacity: 0; transform: translate3d(-50%,-50%,0) scale(.9); }
+  15%{ opacity: 1; }
+  100%{
+    opacity: 0;
+    transform:
+      translate3d(calc(-50% + var(--dx)), calc(-50% + var(--dy)), 0)
+      rotate(var(--rot))
+      scale(var(--sc));
+  }
+}
+</style>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(() => {
+  const logo = document.getElementById("brandLogo");
+  if (!logo) return;
+
+  const LS_HINT = "bm_hint_shown_v9";
+
+  function showHintOnce() {
+    if (localStorage.getItem(LS_HINT) === "1") return;
+
+    const toast = document.createElement("div");
+    toast.className = "px-toast";
+    toast.innerHTML = `
+      <div class="px-badge">ПАСХАЛКА</div>
+      <p>Есть пасхалка. <strong>Лого любит тройной тап.</strong></p>
+      <button class="px-close" aria-label="Закрыть">×</button>
+    `;
+    document.body.appendChild(toast);
+
+    const hide = () => {
+      toast.classList.remove("show");
+      setTimeout(() => toast.remove(), 250);
+    };
+    const markSeen = () => localStorage.setItem(LS_HINT, "1");
+
+    toast.querySelector(".px-close").addEventListener("click", (e) => {
+      e.stopPropagation();
+      markSeen();
+      hide();
+    });
+
+    toast.addEventListener("click", () => {
+      markSeen();
+      hide();
+    });
+
+    requestAnimationFrame(() => toast.classList.add("show"));
+  }
+
+  function closeOverlay(overlay) {
+    overlay.classList.remove("show");
+    setTimeout(() => overlay.remove(), 240);
+  }
+
+  // легче на мобиле
+  function makePopcorn33(count = 55) {
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    const finalCount = isMobile ? Math.min(count, 40) : count;
+
+    const pop = document.createElement("div");
+    pop.className = "ud-pop";
+
+    const frag = document.createDocumentFragment();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    for (let i = 0; i < finalCount; i++) {
+      const s = document.createElement("span");
+      s.textContent = "33";
+
+      const dx = (Math.random() * 2 - 1) * (w * (isMobile ? 0.46 : 0.52));
+      const dy = (Math.random() * 2 - 1) * (h * (isMobile ? 0.46 : 0.52));
+
+      const rot = (Math.random() * 2 - 1) * 200;
+      const sc  = 0.78 + Math.random() * 0.65;
+
+      const fs  = (isMobile ? (12 + Math.random() * 18) : (14 + Math.random() * 26)).toFixed(0) + "px";
+      const dur = (isMobile ? (820 + Math.random() * 520) : (900 + Math.random() * 650)).toFixed(0) + "ms";
+
+      s.style.setProperty("--dx", dx.toFixed(0) + "px");
+      s.style.setProperty("--dy", dy.toFixed(0) + "px");
+      s.style.setProperty("--rot", rot.toFixed(0) + "deg");
+      s.style.setProperty("--sc", sc.toFixed(2));
+      s.style.setProperty("--fs", fs);
+      s.style.setProperty("--dur", dur);
+
+      s.style.animationDelay = (Math.random() * (isMobile ? 120 : 180)).toFixed(0) + "ms";
+      frag.appendChild(s);
+    }
+
+    pop.appendChild(frag);
+    document.body.appendChild(pop);
+
+    setTimeout(() => pop.remove(), isMobile ? 1650 : 2050);
+  }
+
+  function playScene() {
+    if (document.querySelector(".ud-overlay")) return;
+    try { navigator.vibrate?.(25); } catch(e){}
+
+    const overlay = document.createElement("div");
+    overlay.className = "ud-overlay";
+    overlay.innerHTML = `
+      <div class="ud-vhs"></div>
+
+      <div class="ud-card" role="dialog" aria-modal="true">
+        <div class="ud-noise"></div>
+        <button class="ud-x" aria-label="Закрыть">×</button>
+
+        <div class="ud-tease" id="udTease">
+          <span id="udTeaseText">Считываю сигнал</span>
+          <span class="ud-dots">
+            <span class="ud-dot" id="d1"></span>
+            <span class="ud-dot" id="d2"></span>
+            <span class="ud-dot" id="d3"></span>
+          </span>
+        </div>
+
+        <div class="ud-dice" id="udDice">
+          <div class="ud-dice-num" id="udDiceNum">??</div>
+        </div>
+
+        <div class="ud-msg" id="udMsg">
+          Пусть 33 будет просто хорошим знаком, без лишней тревоги))
+        </div>
+
+        <button class="ud-btn" id="udBtn">Нажми</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add("show"));
+
+    const xBtn  = overlay.querySelector(".ud-x");
+    const tease = overlay.querySelector("#udTease");
+    const teaseText = overlay.querySelector("#udTeaseText");
+
+    const d1 = overlay.querySelector("#d1");
+    const d2 = overlay.querySelector("#d2");
+    const d3 = overlay.querySelector("#d3");
+
+    const dice  = overlay.querySelector("#udDice");
+    const numEl = overlay.querySelector("#udDiceNum");
+    const msg   = overlay.querySelector("#udMsg");
+    const btn   = overlay.querySelector("#udBtn");
+
+    xBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeOverlay(overlay);
+    });
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeOverlay(overlay);
+    });
+
+    // === "Считываю сигнал..." + бегущая точка ===
+    tease.classList.add("show");
+
+    let dotState = 0;
+    const teaseTimer = setInterval(() => {
+      dotState = (dotState + 1) % 4; // 0..3
+      teaseText.textContent = "Считываю сигнал" + ".".repeat(dotState);
+
+      d1.classList.remove("on"); d2.classList.remove("on"); d3.classList.remove("on");
+      const k = (dotState % 3) + 1;
+      overlay.querySelector("#d" + k).classList.add("on");
+    }, 320);
+
+    // === появление кубика и старт ===
+    setTimeout(() => {
+      dice.classList.add("show", "shake");
+      rollWithSlowdown();
+    }, 800);
+
+    function stopTease(finalText) {
+      clearInterval(teaseTimer);
+      teaseText.textContent = finalText;
+      d1.classList.add("on"); d2.classList.add("on"); d3.classList.add("on");
+    }
+
+    // === ролл с замедлением + интрига + обманка ===
+    function rollWithSlowdown() {
+      let tick = 0;
+
+      const total = 52;
+      const startDelay = 55;
+      const endDelay   = 320;
+
+      const next = () => {
+        tick++;
+
+        const n = Math.floor(Math.random() * 99) + 1;
+        numEl.textContent = String(n).padStart(2, "0");
+
+        const t = tick / total;
+        const delay = Math.round(startDelay + (endDelay - startDelay) * (t * t));
+
+        if (tick < total) {
+          setTimeout(next, delay);
+        } else {
+          dice.classList.remove("shake");
+          numEl.textContent = "??";
+
+          setTimeout(() => {
+            stopTease("Сигнал найден");
+
+            numEl.textContent = "3?";
+            numEl.style.opacity = "0.25";
+            setTimeout(() => { numEl.style.opacity = "1"; }, 140);
+
+            setTimeout(() => {
+              stopTease("Проверка…");
+
+              numEl.textContent = "34";
+
+              setTimeout(() => {
+                stopTease("Найдено: 33");
+
+                dice.style.filter = "brightness(1.12)";
+                setTimeout(() => { dice.style.filter = ""; }, 260);
+
+                numEl.textContent = "33";
+                dice.classList.add("final");
+
+                // ✅ СНАЧАЛА показываем текст
+                setTimeout(() => {
+                  msg.classList.add("show");
+
+                  // ✅ ДАЁМ ВРЕМЯ ПРОЧИТАТЬ — ПОТОМ кнопка
+                  setTimeout(() => {
+                    btn.classList.add("show");
+                  }, 1200); // время на чтение (можешь менять 1200-2200)
+                }, 720);
+
+              }, 180);
+            }, 1900);
+          }, 1400);
+        }
+      };
+
+      next();
+    }
+
+    // === кнопка: конфетти и закрытие ===
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+
+        makePopcorn33(46);
+        setTimeout(() => makePopcorn33(38), 120);
+        setTimeout(() => makePopcorn33(30), 240);
+
+
+      setTimeout(() => closeOverlay(overlay), 720);
+    });
+  }
+
+  // Triple tap
+  let taps = 0;
+  let lastTap = 0;
+  let resetTimer = null;
+
+  function onTap(e) {
+    e.preventDefault?.();
+
+    const now = Date.now();
+    if (now - lastTap > 1400) taps = 0;
+    lastTap = now;
+
+    taps += 1;
+    clearTimeout(resetTimer);
+    resetTimer = setTimeout(() => { taps = 0; }, 1500);
+
+    if (taps >= 3) {
+      taps = 0;
+      playScene();
+    }
+  }
+
+  window.addEventListener("load", () => {
+    if (window.location.pathname === "/") showHintOnce();
+  });
+
+  logo.addEventListener("click", onTap, { passive: false });
+})();
+</script>
+
+{% endblock %}

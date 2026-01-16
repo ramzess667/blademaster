@@ -1,242 +1,360 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+  /* Safe space для фиксированной кнопки на мобилке */
+  .bm-has-actionbar { padding-bottom: 110px; }
+
+  /* Чипы времени */
+  .bm-time-btn {
+    min-width: 92px;
+    border-radius: 999px;
+    font-weight: 800;
+    transition: all .2s ease;
+  }
+  .bm-time-btn.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #000;
+  }
+
+  /* На мобилке: один ряд со скроллом (компактно) */
+  @media (max-width: 768px) {
+    #timeButtons {
+      flex-wrap: nowrap !important;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 6px;
+      justify-content: flex-start !important;
+    }
+
+    #timeButtons::-webkit-scrollbar { height: 6px; }
+    #timeButtons::-webkit-scrollbar-thumb {
+      background: rgba(255,215,0,0.25);
+      border-radius: 10px;
+    }
+
+    .bm-time-btn {
+      flex: 0 0 auto;
+      width: auto;
+      min-width: 92px;
+    }
+  }
+
+  /* Карточка сводки */
+  .bm-summary-list .list-group-item {
+    background: transparent !important;
+    border-color: rgba(255,255,255,0.10) !important;
+    color: var(--text-primary) !important;
+  }
+
+  /* Пилюли выбранных значений */
+  .bm-selected-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .35rem .75rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,215,0,0.45);
+    background: rgba(255,215,0,0.08);
+    color: var(--gold);
+    font-weight: 800;
+    font-size: .95rem;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 
-<!-- Заголовок -->
-<section class="py-5 text-center border-bottom border-secondary">
+<div class="bm-has-actionbar">
+
+  <!-- Заголовок -->
+  <section class="bm-page-title">
     <div class="container" data-aos="fade-down">
-        <h1 class="display-5 fw-bold text-gold mb-3">Выбор даты и времени</h1>
-        <p class="lead text-light">Выберите удобное время для записи</p>
+      <h1 class="display-5 fw-bold text-gold mb-3">Выбор даты и времени</h1>
+      <p class="lead text-muted">Выберите удобное время для записи</p>
     </div>
-</section>
+  </section>
 
-<!-- Сводка услуг (всегда видна) -->
-<section class="py-4">
+  <!-- Сводка -->
+  <section class="bm-section pt-4">
     <div class="container" data-aos="fade-up">
-        <div class="card bg-dark border-0 shadow-lg mx-auto" style="max-width: 700px;">
-            <div class="card-body p-4">
-                <h5 class="text-gold fw-bold mb-3 text-center">Ваши данные записи</h5>
-                <p class="text-light mb-2"><strong class="text-gold">Мастер:</strong> {{ master.full_name }}</p>
-                <ul class="list-group list-group-flush mb-3">
-                    {% for service in services %}
-                    <li class="list-group-item bg-transparent border-secondary text-light d-flex justify-content-between py-2">
-                        <span class="text-light">{{ service.name }}</span>
-                        <span class="text-gold">{{ service.price }} ₸ ({{ service.duration }} мин)</span>
-                    </li>
-                    {% endfor %}
-                </ul>
+      <div class="bm-card mx-auto" style="max-width: 820px;">
+        <div class="p-4 p-md-5">
 
-                <div class="d-flex justify-content-between fw-bold text-light">
-                    <span class="text-gold">Итого:</span>
-                    <span class="text-gold" id="totalPriceText">{{ total_price }} ₸</span>
-                </div>
-
-                <div class="d-flex justify-content-between text-light mt-1">
-                    <span>Длительность:</span>
-                    <span>{{ total_duration }} мин</span>
-                </div>
-
-                <!-- Показываем выбранную предоплату красиво -->
-                <div class="d-flex justify-content-between text-light mt-2" id="prepayRow" style="display:none;">
-                    <span>Предоплата (30%):</span>
-                    <span class="text-gold fw-bold" id="prepayAmountText">0 ₸</span>
-                </div>
+          <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3">
+            <div>
+              <div class="text-gold fw-bold fs-4">Ваши данные записи</div>
+              <div class="text-muted">Проверьте выбранные услуги перед подтверждением</div>
             </div>
-        </div>
-    </div>
-</section>
+            <div class="d-flex flex-wrap gap-2">
+              <span class="bm-selected-pill">👤 {{ master.full_name }}</span>
+              <span class="bm-selected-pill">🧾 <span id="pillTotal">{{ total_price }}</span> ₸</span>
+              <span class="bm-selected-pill">⏱ {{ total_duration }} мин</span>
+            </div>
+          </div>
 
-<!-- Форма -->
-<section class="py-5">
-    <div class="container">
-        <form method="post" id="bookingForm" action="{% url 'book_confirm' %}">
-            {% csrf_token %}
-            <input type="hidden" name="master_id" value="{{ master.id }}">
-
+          <ul class="list-group list-group-flush bm-summary-list mb-3">
             {% for service in services %}
-            <input type="hidden" name="service_ids" value="{{ service.id }}">
+              <li class="list-group-item d-flex justify-content-between align-items-start py-2">
+                <div class="me-3">
+                  <div class="fw-bold text-light">{{ service.name }}</div>
+                  <div class="text-muted small">{{ service.duration }} мин</div>
+                </div>
+                <div class="text-gold fw-bold">{{ service.price }} ₸</div>
+              </li>
             {% endfor %}
+          </ul>
 
-            <!-- для JS: сумма -->
-            <input type="hidden" id="totalPriceValue" value="{{ total_price }}">
+          <div class="d-flex justify-content-between fw-bold">
+            <span class="text-muted">Стоимость услуг:</span>
+            <span class="text-gold fs-5" id="summaryTotal">{{ total_price }} ₸</span>
+          </div>
 
-            <div class="row g-4 mb-5">
-                <!-- Дата -->
-                <div class="col-12 col-md-6">
-                    <label class="fw-bold fs-5 text-gold mb-2 d-block">Дата</label>
-                    <input type="text" id="datepicker"
-                           class="form-control form-control-lg bg-dark text-light border-gold"
-                           placeholder="Выберите дату" required>
-                    <input type="hidden" name="date" id="selectedDate">
+          <div class="d-flex justify-content-between mt-1" id="summaryPrepayRow" style="display:none;">
+            <span class="text-muted">Предоплата (30%):</span>
+            <span class="text-gold fw-bold" id="summaryPrepay">0 ₸</span>
+          </div>
+
+          <div class="d-flex justify-content-between fw-bold mt-1">
+            <span class="text-muted">Осталось оплатить:</span>
+            <span class="text-gold fs-5" id="summaryToPay">{{ total_price }} ₸</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Форма -->
+  <section class="bm-section pt-0">
+    <div class="container">
+      <form method="post" id="bookingForm" action="{% url 'book_confirm' %}">
+        {% csrf_token %}
+
+        <input type="hidden" name="master_id" value="{{ master.id }}">
+        {% for service in services %}
+          <input type="hidden" name="service_ids" value="{{ service.id }}">
+        {% endfor %}
+
+        <input type="hidden" id="totalPriceValue" value="{{ total_price }}">
+
+        <div class="bm-card mx-auto" style="max-width: 820px;">
+          <div class="p-4 p-md-5">
+
+            <div class="row g-4 mb-4">
+
+              <!-- Дата -->
+              <div class="col-12 col-md-6">
+                <label class="fw-bold fs-5 text-gold mb-2 d-block">Дата</label>
+                <input type="text"
+                       id="datepicker"
+                       class="form-control form-control-lg bm-input"
+                       placeholder="Выберите дату"
+                       required>
+                <input type="hidden" name="date" id="selectedDate">
+                <div class="text-muted small mt-2">Доступно на ближайшие 30 дней</div>
+              </div>
+
+              <!-- Время -->
+              <div class="col-12 col-md-6">
+                <label class="fw-bold fs-5 text-gold mb-2 d-block">Время</label>
+
+                <div class="text-muted small mb-2">
+                  Выбрано: <span class="text-gold fw-bold" id="pickedTimeText">—</span>
                 </div>
 
-                <!-- Время -->
-                <div class="col-12 col-md-6">
-                    <label class="fw-bold fs-5 text-gold mb-2 d-block">Время</label>
-                    <div class="d-flex flex-wrap gap-2" id="timeButtons">
-                        <!-- Спиннер -->
-                        <div class="spinner-border text-gold mx-auto my-4" role="status" id="timeLoader" style="display: none;">
-                            <span class="visually-hidden">Загрузка...</span>
-                        </div>
-                        <p id="noSlotsMsg" class="text-danger fw-bold d-none w-100 text-center my-4">
-                            На эту дату нет свободного времени
-                        </p>
-                    </div>
-                    <input type="hidden" name="time" id="selectedTime" required>
+                <div class="d-flex flex-wrap gap-2 align-items-start" id="timeButtons">
+                  <div class="spinner-border text-gold mx-auto my-4" role="status" id="timeLoader" style="display:none;">
+                    <span class="visually-hidden">Загрузка...</span>
+                  </div>
+
+                  <p id="noSlotsMsg" class="text-danger fw-bold d-none w-100 text-center my-4">
+                    На эту дату нет свободного времени
+                  </p>
                 </div>
+
+                <input type="hidden" name="time" id="selectedTime" required>
+              </div>
+
             </div>
 
             <!-- Данные клиента -->
-            <h4 class="text-gold fw-bold mb-4">Ваши данные</h4>
-            <div class="row g-3">
+            <div class="mt-4">
+              <h4 class="text-gold fw-bold mb-3">Ваши данные</h4>
+
+              <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="fw-bold text-muted">Имя</label>
-                    <input type="text" name="client_name" class="form-control bg-dark text-light border-gold"
-                           value="{% if user.is_authenticated %}{{ user.first_name }}{% endif %}" required>
+                  <label class="fw-bold text-muted">Имя</label>
+                  <input type="text"
+                         name="client_name"
+                         class="form-control bm-input"
+                         value="{% if user.is_authenticated %}{{ user.first_name }}{% endif %}"
+                         required>
                 </div>
 
                 <div class="col-md-6">
-                    <label class="fw-bold text-muted">Телефон</label>
-                    <input type="tel" id="phoneInput" name="client_phone" class="form-control bg-dark text-light border-gold" value="{% if user.is_authenticated %}{{ user.client.phone }}{% endif %}" required {% if user.is_authenticated %}readonly{% endif %}>
+                  <label class="fw-bold text-muted">Телефон</label>
+                  <input type="tel"
+                         id="phoneInput"
+                         name="client_phone"
+                         class="form-control bm-input"
+                         value="{% if user.is_authenticated %}{{ user.client.phone }}{% endif %}"
+                         required
+                         {% if user.is_authenticated %}readonly{% endif %}>
                 </div>
 
                 {% if not user.is_authenticated %}
                 <div class="col-md-6">
-                    <label class="fw-bold text-muted">Пароль</label>
-                    <input type="password" name="password" class="form-control bg-dark text-light border-gold" required>
+                  <label class="fw-bold text-muted">Пароль</label>
+                  <input type="password" name="password" class="form-control bm-input" required>
                 </div>
                 <div class="col-md-6">
-                    <label class="fw-bold text-muted">Повторить пароль</label>
-                    <input type="password" name="password2" class="form-control bg-dark text-light border-gold">
+                  <label class="fw-bold text-muted">Повторить пароль</label>
+                  <input type="password" name="password2" class="form-control bm-input">
                 </div>
                 {% endif %}
 
                 <div class="col-12">
-                    <label class="fw-bold text-muted">Email (необязательно)</label>
-                    <input type="email" name="client_email" class="form-control bg-dark text-light border-gold"
-                           value="{% if user.is_authenticated %}{{ user.email }}{% endif %}">
+                  <label class="fw-bold text-muted">Email (необязательно)</label>
+                  <input type="email"
+                         name="client_email"
+                         class="form-control bm-input"
+                         value="{% if user.is_authenticated %}{{ user.email }}{% endif %}">
                 </div>
+              </div>
             </div>
 
-            <!-- Чекбокс оферты -->
-            <div class="form-check mb-4 text-center mt-4">
-                <input class="form-check-input" type="checkbox" name="agree_offer" id="agreeOffer" required>
-                <label class="form-check-label text-light" for="agreeOffer">
-                    Я согласен с
-                    <a href="#" data-bs-toggle="modal" data-bs-target="#offerModal" class="text-gold fw-bold">
-                        публичной офертой
-                    </a>
-                </label>
+            <!-- Оферта -->
+            <div class="form-check mt-4 text-center">
+              <input class="form-check-input" type="checkbox" name="agree_offer" id="agreeOffer" required>
+              <label class="form-check-label text-light" for="agreeOffer">
+                Я согласен с
+                <a href="#" data-bs-toggle="modal" data-bs-target="#offerModal" class="text-gold fw-bold">
+                  публичной офертой
+                </a>
+              </label>
             </div>
 
-            <!-- Предоплата (ЗАГЛУШКА) -->
-            <div class="form-check mb-3 text-center">
-                <input class="form-check-input" type="checkbox" name="prepayment" id="prepaymentCheck">
-                <label class="form-check-label text-light" for="prepaymentCheck">
-                    Внести предоплату <span class="text-gold fw-bold">30%</span>
-                    <span class="text-gold fw-bold" id="prepayInline" style="display:none;">
-                        (<span id="prepayInlineAmount">0</span> ₸)
-                    </span>
-                </label>
-                <div class="text-muted mt-2" style="font-size:0.92rem;">
-                    Это <b>имитация оплаты</b>: сайт не ждёт реальный платёж, а просто сохраняет сумму предоплаты.
-                </div>
+            <!-- Предоплата -->
+            <div class="form-check mt-3 text-center">
+              <input class="form-check-input" type="checkbox" name="prepayment" id="prepaymentCheck">
+              <label class="form-check-label text-light" for="prepaymentCheck">
+                Внести предоплату <span class="text-gold fw-bold">30%</span>
+                <span class="text-gold fw-bold" id="prepayInline" style="display:none;">
+                  (<span id="prepayInlineAmount">0</span> ₸)
+                </span>
+              </label>
+
+              <div class="text-muted mt-2" style="font-size:0.92rem;">
+                Это <b>имитация оплаты</b>: сайт не ждёт реальный платёж, а просто сохраняет сумму предоплаты.
+              </div>
             </div>
 
-            <!-- Способ оплаты (на месте) -->
+            <!-- Способ оплаты -->
             <div class="mt-3 text-center">
-                <div class="text-muted fw-bold mb-2">Способ оплаты</div>
+              <div class="text-muted fw-bold mb-2">Способ оплаты</div>
 
-                <div id="payOnSiteBlock" class="d-flex flex-wrap gap-3 justify-content-center">
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="payment_method" id="payCash" value="cash" checked>
-                        <label class="form-check-label text-light" for="payCash">Наличными</label>
-                    </div>
-
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="payment_method" id="payCard" value="card">
-                        <label class="form-check-label text-light" for="payCard">Картой</label>
-                    </div>
-
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="payment_method" id="payQr" value="kaspi_qr">
-                        <label class="form-check-label text-light" for="payQr">Kaspi QR</label>
-                    </div>
+              <div id="payOnSiteBlock" class="d-flex flex-wrap gap-3 justify-content-center">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="payment_method" id="payCash" value="cash" checked>
+                  <label class="form-check-label text-light" for="payCash">Наличными</label>
                 </div>
 
-                <div id="payPrepayBlock" class="mt-2" style="display:none;">
-                    <span class="text-muted">Способ предоплаты:</span>
-                    <span class="text-gold fw-bold">Kaspi Pay (имитация)</span>
-                </div>
-            </div>
-
-            <!-- Фиксированная кнопка на мобильных -->
-            <div class="fixed-bottom d-md-none bg-dark border-top border-secondary py-3 px-4 shadow-lg"
-                 id="mobileActionBar" style="display: none;">
-                <div class="container-fluid text-center">
-                    <button type="submit" class="btn btn-gold btn-lg px-5 fw-bold rounded-pill shadow-lg" disabled
-                            id="submitBtnMobile">
-                        Подтвердить запись
-                    </button>
-                </div>
-            </div>
-
-            <!-- Кнопка для десктоп -->
-            <div class="text-center mt-5 pt-5 d-none d-md-block">
-                <button type="submit" class="btn btn-gold btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg" disabled
-                        id="submitBtnDesktop">
-                    Подтвердить запись
-                </button>
-            </div>
-        </form>
-    </div>
-</section>
-
-<!-- Модальное окно оферты -->
-<div class="modal fade" id="offerModal" tabindex="-1" aria-labelledby="offerModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content bg-dark text-light border-0 shadow-lg" style="border-radius: 16px;">
-
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title text-gold" id="offerModalLabel">Публичная оферта BladeMaster</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-            </div>
-
-            <div class="modal-body">
-                <p class="mb-3">
-                    Настоящая публичная оферта является официальным предложением барбершопа
-                    <strong>«BladeMaster»</strong> заключить договор на оказание услуг на следующих условиях:
-                </p>
-
-                <ol class="text-light">
-                    <li>Запись осуществляется через сайт. Оплата — на месте наличными или картой.</li>
-                    <li>Отмена записи менее чем за 2 часа до начала — штраф 50% от стоимости услуги.</li>
-                    <li>Опоздание клиента более чем на 15 минут может привести к аннулированию записи.</li>
-                    <li>Клиент обязуется соблюдать правила поведения в заведении.</li>
-                    <li>Оформление записи означает полное согласие с условиями оферты.</li>
-                </ol>
-
-                <div class="mt-4 p-3 text-center" style="border: 1px dashed rgba(255,215,0,0.35); border-radius: 14px;">
-                    <div class="mb-2" style="color: var(--gold); font-weight: 600;">Полная версия оферты</div>
-                    <!-- ВАЖНО: без target=_blank — откроется в той же вкладке -->
-                    <a href="{% url 'offer' %}" class="btn btn-warning px-4 py-2" style="font-weight: 700;">
-                        Открыть страницу оферты
-                    </a>
-                    <div class="text-muted mt-2" style="font-size: 0.9rem;">На странице доступен просмотр и скачивание PDF</div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="payment_method" id="payCard" value="card">
+                  <label class="form-check-label text-light" for="payCard">Картой</label>
                 </div>
 
-                <p class="text-muted small mt-4 text-center">Барбершоп «BladeMaster», г. Алматы, 2026 год</p>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="payment_method" id="payQr" value="kaspi_qr">
+                  <label class="form-check-label text-light" for="payQr">Kaspi QR</label>
+                </div>
+              </div>
+
+              <div id="payPrepayBlock" class="mt-2" style="display:none;">
+                <span class="text-muted">Способ предоплаты:</span>
+                <span class="text-gold fw-bold">Kaspi Pay (имитация)</span>
+              </div>
             </div>
 
-            <div class="modal-footer border-secondary">
-                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Закрыть</button>
+            <!-- Десктоп кнопка -->
+            <div class="text-center mt-4 d-none d-md-block">
+              <button type="submit"
+                      class="btn btn-outline-gold btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg"
+                      disabled
+                      id="submitBtnDesktop">
+                Подтвердить запись
+              </button>
             </div>
+
+          </div>
         </div>
+
+        <!-- Моб кнопка fixed -->
+        <div class="fixed-bottom d-md-none bg-dark border-top border-secondary py-3 px-4 shadow-lg"
+             id="mobileActionBar" style="display:none;">
+          <div class="container-fluid text-center">
+            <button type="submit"
+                    class="btn btn-outline-gold btn-lg px-5 fw-bold rounded-pill shadow-lg"
+                    disabled
+                    id="submitBtnMobile">
+              Подтвердить запись
+            </button>
+          </div>
+        </div>
+
+      </form>
     </div>
+  </section>
+
 </div>
 
-<!-- CDN -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<!-- Модалка оферты -->
+<div class="modal fade" id="offerModal" tabindex="-1" aria-labelledby="offerModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-light border-0 shadow-lg" style="border-radius: 16px;">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title text-gold" id="offerModalLabel">Публичная оферта BladeMaster</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+
+      <div class="modal-body">
+        <p class="mb-3">
+          Настоящая публичная оферта является официальным предложением барбершопа
+          <strong>«BladeMaster»</strong> заключить договор на оказание услуг на следующих условиях:
+        </p>
+
+        <ol class="text-light">
+          <li>Запись осуществляется через сайт. Оплата — на месте наличными или картой.</li>
+          <li>Отмена записи менее чем за 2 часа до начала — штраф 50% от стоимости услуги.</li>
+          <li>Опоздание клиента более чем на 15 минут может привести к аннулированию записи.</li>
+          <li>Клиент обязуется соблюдать правила поведения в заведении.</li>
+          <li>Оформление записи означает полное согласие с условиями оферты.</li>
+        </ol>
+
+        <div class="mt-4 p-3 text-center" style="border: 1px dashed rgba(255,215,0,0.35); border-radius: 14px;">
+          <div class="mb-2" style="color: var(--gold); font-weight: 700;">Полная версия оферты</div>
+          <a href="{% url 'offer' %}" class="btn btn-outline-gold px-4 py-2 rounded-pill fw-bold">
+            Открыть страницу оферты
+          </a>
+          <div class="text-muted mt-2" style="font-size: 0.9rem;">На странице доступен просмотр и скачивание PDF</div>
+        </div>
+
+        <p class="text-muted small mt-4 text-center">Барбершоп «BladeMaster», г. Алматы, 2026 год</p>
+      </div>
+
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-outline-gold rounded-pill px-4 fw-bold" data-bs-dismiss="modal">
+          Закрыть
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- scripts -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
 <script src="https://unpkg.com/imask"></script>
@@ -244,164 +362,169 @@
 <input type="hidden" id="initialDate" value="{{ dates.0|date:'Y-m-d' }}">
 
 <script>
-    // Маска телефона
-    IMask(document.getElementById('phoneInput'), {
-        mask: '+{7} (000) 000-00-00',
-        lazy: false,
-        placeholderChar: '_'
+  // Маска телефона
+  const phoneEl = document.getElementById('phoneInput');
+  if (phoneEl) {
+    IMask(phoneEl, {
+      mask: '+{7} (000) 000-00-00',
+      lazy: false,
+      placeholderChar: '_'
     });
+  }
 
-    const timeButtonsContainer = document.getElementById('timeButtons');
-    const selectedTimeInput = document.getElementById('selectedTime');
-    const selectedDateInput = document.getElementById('selectedDate');
-    const submitBtnDesktop = document.getElementById('submitBtnDesktop');
-    const submitBtnMobile = document.getElementById('submitBtnMobile');
-    const mobileBar = document.getElementById('mobileActionBar');
-    const timeLoader = document.getElementById('timeLoader');
-    const noSlotsMsg = document.getElementById('noSlotsMsg');
-    const masterId = '{{ master.id }}';
-    const initialDate = document.getElementById('initialDate').value;
+  const timeButtonsContainer = document.getElementById('timeButtons');
+  const selectedTimeInput = document.getElementById('selectedTime');
+  const selectedDateInput = document.getElementById('selectedDate');
+  const pickedTimeText = document.getElementById('pickedTimeText');
 
-    // Предоплата UI
-    const prepayCheck = document.getElementById("prepaymentCheck");
-    const totalPriceValue = document.getElementById("totalPriceValue");
-    const prepayInline = document.getElementById("prepayInline");
-    const prepayInlineAmount = document.getElementById("prepayInlineAmount");
-    const prepayRow = document.getElementById("prepayRow");
-    const prepayAmountText = document.getElementById("prepayAmountText");
-    const payOnSiteBlock = document.getElementById("payOnSiteBlock");
-    const payPrepayBlock = document.getElementById("payPrepayBlock");
+  const submitBtnDesktop = document.getElementById('submitBtnDesktop');
+  const submitBtnMobile = document.getElementById('submitBtnMobile');
+  const mobileBar = document.getElementById('mobileActionBar');
 
-    function calcPrepay() {
-        const raw = (totalPriceValue?.value || "0").toString().replace(/\s/g, "");
-        const total = parseFloat(raw) || 0;
-        return Math.round(total * 0.30);
+  const timeLoader = document.getElementById('timeLoader');
+  const noSlotsMsg = document.getElementById('noSlotsMsg');
+
+  const masterId = '{{ master.id }}';
+  const initialDate = document.getElementById('initialDate')?.value;
+
+  // Предоплата UI + сводка
+  const prepayCheck = document.getElementById("prepaymentCheck");
+  const totalPriceValue = document.getElementById("totalPriceValue");
+  const prepayInline = document.getElementById("prepayInline");
+  const prepayInlineAmount = document.getElementById("prepayInlineAmount");
+  const payOnSiteBlock = document.getElementById("payOnSiteBlock");
+  const payPrepayBlock = document.getElementById("payPrepayBlock");
+
+  function fmt(n) {
+    const x = Math.max(0, Math.round(n || 0));
+    return x.toString();
+  }
+
+  function updateSummaryPayment() {
+    const raw = (totalPriceValue?.value || "0").toString().replace(/\s/g, "");
+    const total = parseFloat(raw) || 0;
+    const prepay = Math.round(total * 0.30);
+    const toPay = Math.max(0, Math.round(total - prepay));
+
+    const summaryPrepayRow = document.getElementById("summaryPrepayRow");
+    const summaryPrepay = document.getElementById("summaryPrepay");
+    const summaryToPay = document.getElementById("summaryToPay");
+
+    if (prepayCheck && prepayCheck.checked) {
+      if (summaryPrepayRow) summaryPrepayRow.style.display = "flex";
+      if (summaryPrepay) summaryPrepay.textContent = fmt(prepay) + " ₸";
+      if (summaryToPay) summaryToPay.textContent = fmt(toPay) + " ₸";
+
+      if (prepayInline) prepayInline.style.display = "inline";
+      if (prepayInlineAmount) prepayInlineAmount.textContent = fmt(prepay);
+
+      if (payOnSiteBlock) {
+        payOnSiteBlock.style.opacity = "0.5";
+        payOnSiteBlock.style.pointerEvents = "none";
+      }
+      if (payPrepayBlock) payPrepayBlock.style.display = "block";
+    } else {
+      if (summaryPrepayRow) summaryPrepayRow.style.display = "none";
+      if (summaryToPay) summaryToPay.textContent = fmt(total) + " ₸";
+
+      if (prepayInline) prepayInline.style.display = "none";
+
+      if (payOnSiteBlock) {
+        payOnSiteBlock.style.opacity = "1";
+        payOnSiteBlock.style.pointerEvents = "auto";
+      }
+      if (payPrepayBlock) payPrepayBlock.style.display = "none";
     }
+  }
 
-    function togglePrepayUI() {
-        const amount = calcPrepay();
-        if (prepayCheck && prepayCheck.checked) {
-            if (prepayInline) prepayInline.style.display = "inline";
-            if (prepayInlineAmount) prepayInlineAmount.textContent = amount.toString();
-            if (prepayRow) prepayRow.style.display = "flex";
-            if (prepayAmountText) prepayAmountText.textContent = amount + " ₸";
+  if (prepayCheck) {
+    prepayCheck.addEventListener("change", updateSummaryPayment);
+    updateSummaryPayment();
+  }
 
-            // при предоплате — скрываем оплату "на месте"
-            if (payOnSiteBlock) {
-                payOnSiteBlock.style.opacity = "0.5";
-                payOnSiteBlock.style.pointerEvents = "none";
-            }
-            if (payPrepayBlock) payPrepayBlock.style.display = "block";
-        } else {
-            if (prepayInline) prepayInline.style.display = "none";
-            if (prepayRow) prepayRow.style.display = "none";
+  function setSelectedTimeButton(btn) {
+    document.querySelectorAll('.bm-time-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
 
-            if (payOnSiteBlock) {
-                payOnSiteBlock.style.opacity = "1";
-                payOnSiteBlock.style.pointerEvents = "auto";
-            }
-            if (payPrepayBlock) payPrepayBlock.style.display = "none";
-        }
-    }
+  function loadFreeSlots(dateStr) {
+    timeButtonsContainer.innerHTML = '';
+    timeLoader.style.display = 'inline-block';
+    noSlotsMsg.classList.add('d-none');
 
-    if (prepayCheck) {
-        prepayCheck.addEventListener("change", togglePrepayUI);
-        togglePrepayUI();
-    }
+    fetch(`/get-free-slots/${masterId}/${dateStr}/`)
+      .then(res => res.json())
+      .then(data => {
+        timeLoader.style.display = 'none';
 
-    function loadFreeSlots(dateStr) {
-        timeButtonsContainer.innerHTML = '';
-        timeLoader.style.display = 'inline-block';
-        noSlotsMsg.classList.add('d-none');
+        if (data.free_slots && data.free_slots.length > 0) {
+          data.free_slots.forEach(time => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-outline-gold bm-time-btn px-3 py-2';
+            btn.dataset.time = time;
+            btn.textContent = time;
 
-        fetch(`/get-free-slots/${masterId}/${dateStr}/`)
-            .then(response => response.json())
-            .then(data => {
-                timeLoader.style.display = 'none';
-
-                if (data.free_slots && data.free_slots.length > 0) {
-                    data.free_slots.forEach(time => {
-                        const btn = document.createElement('button');
-                        btn.type = 'button';
-                        btn.className = 'btn btn-outline-gold time-btn px-3 py-2 rounded-pill fw-bold';
-                        btn.dataset.time = time;
-                        btn.textContent = time;
-                        btn.addEventListener('click', () => {
-                            document.querySelectorAll('.time-btn').forEach(b => {
-                                b.classList.remove('btn-gold');
-                                b.classList.add('btn-outline-gold');
-                            });
-                            btn.classList.remove('btn-outline-gold');
-                            btn.classList.add('btn-gold');
-                            selectedTimeInput.value = time;
-                            checkFormReady();
-                        });
-                        timeButtonsContainer.appendChild(btn);
-                    });
-                } else {
-                    noSlotsMsg.classList.remove('d-none');
-                }
-                checkFormReady();
-            })
-            .catch(() => {
-                timeLoader.style.display = 'none';
-                timeButtonsContainer.innerHTML = '<p class="text-warning fw-bold">Ошибка загрузки слотов</p>';
+            btn.addEventListener('click', () => {
+              setSelectedTimeButton(btn);
+              selectedTimeInput.value = time;
+              if (pickedTimeText) pickedTimeText.textContent = time;
+              checkFormReady();
             });
-    }
 
-    flatpickr("#datepicker", {
-        dateFormat: "Y-m-d",
-        minDate: "today",
-        maxDate: new Date().fp_incr(30),
-        locale: "ru",
-        defaultDate: initialDate,
-        onChange: function (selectedDates, dateStr) {
-            selectedDateInput.value = dateStr;
-            loadFreeSlots(dateStr);
-            checkFormReady();
+            timeButtonsContainer.appendChild(btn);
+          });
+        } else {
+          noSlotsMsg.classList.remove('d-none');
         }
-    });
 
-    // важно: чтобы кнопка становилась активной сразу
+        checkFormReady();
+      })
+      .catch(() => {
+        timeLoader.style.display = 'none';
+        timeButtonsContainer.innerHTML = '<p class="text-warning fw-bold w-100 text-center">Ошибка загрузки слотов</p>';
+      });
+  }
+
+  flatpickr("#datepicker", {
+    dateFormat: "Y-m-d",
+    minDate: "today",
+    maxDate: new Date().fp_incr(30),
+    locale: "ru",
+    defaultDate: initialDate,
+    onChange: function (_, dateStr) {
+      selectedDateInput.value = dateStr;
+      selectedTimeInput.value = '';
+      if (pickedTimeText) pickedTimeText.textContent = '—';
+      loadFreeSlots(dateStr);
+      checkFormReady();
+    }
+  });
+
+  // init
+  if (initialDate) {
     selectedDateInput.value = initialDate;
+    selectedTimeInput.value = '';
+    if (pickedTimeText) pickedTimeText.textContent = '—';
     loadFreeSlots(initialDate);
+  }
 
-    function checkFormReady() {
-        const dateOk = selectedDateInput.value;
-        const timeOk = selectedTimeInput.value;
-        const ready = dateOk && timeOk;
-        submitBtnDesktop.disabled = !ready;
-        submitBtnMobile.disabled = !ready;
-        mobileBar.style.display = ready ? 'block' : 'none';
+  function checkFormReady() {
+    const dateOk = !!selectedDateInput.value;
+    const timeOk = !!selectedTimeInput.value;
+    const ready = dateOk && timeOk;
+
+    submitBtnDesktop.disabled = !ready;
+    submitBtnMobile.disabled = !ready;
+    mobileBar.style.display = ready ? 'block' : 'none';
+  }
+
+  document.getElementById('bookingForm').addEventListener('submit', function (e) {
+    if (!selectedDateInput.value || !selectedTimeInput.value) {
+      alert('Выберите дату и время!');
+      e.preventDefault();
     }
-
-    document.getElementById('bookingForm').addEventListener('submit', function (e) {
-        if (!selectedDateInput.value || !selectedTimeInput.value) {
-            alert('Выберите дату и время!');
-            e.preventDefault();
-        }
-    });
+  });
 </script>
-
-<style>
-    .time-btn { min-width: 90px; transition: all 0.25s ease; }
-    .time-btn.btn-gold { background-color: #FFD700; color: #000; border: none; }
-    .fixed-bottom { z-index: 1000; }
-
-    .form-control {
-        background-color: #2A2A2A !important;
-        color: #E0E0E0 !important;
-        border-color: #444444;
-    }
-    .form-control:focus {
-        border-color: #FFD700 !important;
-        box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.25);
-    }
-
-    @media (max-width: 768px) {
-        .time-btn { width: 48%; }
-        .row.g-4 { flex-direction: column; }
-    }
-</style>
 
 {% endblock %}

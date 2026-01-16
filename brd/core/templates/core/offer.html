@@ -3,72 +3,91 @@
 
 {% block content %}
 
-<style>
-  /* Отступ под фиксированный navbar */
-  .nav-safe-space{ height: 90px; }
-  @media (max-width: 992px){ .nav-safe-space{ height: 80px; } }
-  @media (max-width: 576px){ .nav-safe-space{ height: 72px; } }
-</style>
+<!-- Заголовок -->
+<section class="py-5 text-center border-bottom border-secondary">
+  <div class="container" data-aos="fade-down">
+    <h1 class="display-5 fw-bold text-gold mb-2">Публичная оферта</h1>
+    <p class="lead text-muted mb-0">Условия оказания услуг барбершопа BladeMaster</p>
+  </div>
+</section>
 
-<div class="nav-safe-space"></div>
-
-<section class="section">
+<section class="py-5">
   <div class="container">
-    <div class="section-title">
-      <h2>Публичная оферта</h2>
-      <p>Условия оказания услуг барбершопа «BladeMaster»</p>
-    </div>
+    <div class="row justify-content-center">
+      <div class="col-lg-10 col-xxl-9">
 
-    <div class="card p-4 p-md-5" style="background: rgba(20,20,20,0.85); border: 1px solid rgba(255,215,0,0.25); border-radius: 18px;">
-      <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
-        <div>
-          <h3 class="mb-1" style="color: var(--gold);">Публичная оферта BladeMaster</h3>
-          <div class="text-muted" style="opacity: 0.9;">
-            Актуальная версия. Дата публикации: <span style="color:#ddd;">{% now "d.m.Y" %}</span>
+        <div class="card bg-dark border-0 shadow-lg overflow-hidden">
+          <div class="card-body p-4 p-md-5">
+
+            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+              <div>
+                <h3 class="mb-1 text-gold fw-bold">Публичная оферта BladeMaster</h3>
+                <div class="text-muted">
+                  Актуальная версия. Дата публикации: <span class="text-light">{% now "d.m.Y" %}</span>
+                </div>
+              </div>
+
+              <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'offer_pdf' %}" class="btn btn-outline-gold fw-bold rounded-pill px-4">
+                  Скачать PDF
+                </a>
+                <a href="{% url 'home' %}" class="btn btn-outline-gold fw-bold rounded-pill px-4">
+                  На главную
+                </a>
+              </div>
+            </div>
+
+            <hr class="border-secondary opacity-50">
+
+            <div class="text-light" style="line-height: 1.8;">
+              <h5 class="text-gold mt-4">1. Общие положения</h5>
+              <p class="mb-2">
+                1.1. Настоящая оферта определяет условия оказания услуг барбершопа «BladeMaster».<br>
+                1.2. Оформляя запись, клиент подтверждает согласие с условиями оферты.
+              </p>
+
+              <h5 class="text-gold mt-4">2. Предмет оферты</h5>
+              <p class="mb-2">
+                2.1. Исполнитель оказывает услуги барбершопа согласно выбранным услугам и времени записи.
+              </p>
+
+              <h5 class="text-gold mt-4">3. Порядок записи и отмены</h5>
+              <p class="mb-2">
+                3.1. Запись осуществляется через сайт.<br>
+                3.2. Отмена записи возможна не позднее чем за 2 часа до времени визита.
+              </p>
+
+              <h5 class="text-gold mt-4">4. Стоимость и оплата</h5>
+              <p class="mb-2">
+                4.1. Стоимость услуг определяется прайс-листом на сайте.<br>
+                4.2. Предоплата (если выбрана) рассчитывается автоматически.
+              </p>
+
+              <h5 class="text-gold mt-4">5. Прочие условия</h5>
+              <p class="mb-0">
+                5.1. Исполнитель вправе изменять оферту без предварительного уведомления, размещая актуальную версию на сайте.
+              </p>
+            </div>
+
+            <div class="mt-4 pt-3 border-top border-secondary">
+              <div class="text-muted" style="font-size: 0.95rem;">
+                Если у вас есть вопросы по условиям оферты — свяжитесь с нами через контакты на сайте.
+              </div>
+            </div>
+
           </div>
         </div>
 
-        <div class="d-flex gap-2">
-          <a href="{% url 'offer_pdf' %}" class="btn btn-warning" style="font-weight: 700;">Скачать PDF</a>
-          <a href="{% url 'home' %}" class="btn btn-outline-light">На главную</a>
-        </div>
-      </div>
-
-      <div style="color:#e8e8e8; line-height: 1.75;">
-        <h5 style="color: var(--gold);" class="mt-3">1. Общие положения</h5>
-        <p class="mb-2">
-          1.1. Настоящая оферта определяет условия оказания услуг барбершопа «BladeMaster».<br>
-          1.2. Оформляя запись, клиент подтверждает согласие с условиями оферты.
-        </p>
-
-        <h5 style="color: var(--gold);" class="mt-4">2. Предмет оферты</h5>
-        <p class="mb-2">2.1. Исполнитель оказывает услуги барбершопа согласно выбранным услугам и времени записи.</p>
-
-        <h5 style="color: var(--gold);" class="mt-4">3. Порядок записи и отмены</h5>
-        <p class="mb-2">
-          3.1. Запись осуществляется через сайт.<br>
-          3.2. Отмена записи возможна не позднее чем за 2 часа до времени визита.
-        </p>
-
-        <h5 style="color: var(--gold);" class="mt-4">4. Стоимость и оплата</h5>
-        <p class="mb-2">
-          4.1. Стоимость услуг определяется прайс-листом на сайте.<br>
-          4.2. Предоплата (если выбрана) рассчитывается автоматически.
-        </p>
-
-        <h5 style="color: var(--gold);" class="mt-4">5. Прочие условия</h5>
-        <p class="mb-0">
-          5.1. Исполнитель вправе изменять оферту без предварительного уведомления, размещая актуальную версию на сайте.
-        </p>
-      </div>
-
-      <div class="mt-4 pt-3" style="border-top: 1px solid rgba(255,255,255,0.08);">
-        <div class="text-muted" style="font-size: 0.95rem;">
-          Если у вас есть вопросы по условиям оферты — свяжитесь с нами через контакты на сайте.
-        </div>
       </div>
     </div>
   </div>
 </section>
+
+<style>
+  /* на мобилке делаем кнопки аккуратнее */
+  @media (max-width: 576px) {
+    .btn { width: 100%; }
+  }
+</style>
 
 {% endblock %}
