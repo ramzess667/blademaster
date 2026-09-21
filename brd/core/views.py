@@ -22,6 +22,8 @@ from django.contrib.auth.decorators import user_passes_test
 from reportlab.lib import colors
 from django.db.models import Q
 import requests
+from django.urls import reverse
+
 from reportlab.platypus import (
     SimpleDocTemplate,
     Table,
@@ -386,18 +388,30 @@ def book_success(request, appointment_id):
     )
 
 def book_select_master(request):
-    master_id = request.POST.get("master_id") or request.session.get(
-        "selected_master_id"
-    )
-    if master_id:
-        return redirect(reverse("book_datetime_multi") + "?master=" + str(master_id))
+    # 1) Если мастер уже выбран (на странице мастеров нажали "Далее")
+    if request.method == "POST" and request.POST.get("master_id"):
+        master_id = request.POST.get("master_id")
 
+        # сохраняем выбранного мастера
+        request.session["selected_master_id"] = int(master_id)
+
+        # важно: услуги должны уже лежать в session
+        if not request.session.get("selected_service_ids"):
+            messages.error(request, "Сначала выберите услуги.")
+            return redirect("services")
+
+        return redirect(f"/book/datetime/?master={master_id}")
+
+    # 2) Первый шаг: пришли услуги с /services/ → показываем выбор мастера
     if request.method == "POST":
         service_ids = request.POST.getlist("services")
 
         if not service_ids:
             messages.error(request, "Выберите хотя бы одну услугу!")
             return redirect("services")
+
+        # сохраняем услуги в session, чтобы не терялись после редиректов
+        request.session["selected_service_ids"] = [int(x) for x in service_ids]
 
         services = Service.objects.filter(id__in=service_ids)
         masters = Master.objects.all()
@@ -416,7 +430,6 @@ def book_select_master(request):
         )
 
     return redirect("services")
-
 
 def book_datetime_multi(request):
     """
